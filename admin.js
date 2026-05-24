@@ -99,10 +99,78 @@ let uploadedImgBase64 = "";
 
 // Initialize Dashboard
 document.addEventListener("DOMContentLoaded", () => {
+  initAuth();
   initTabs();
   loadAllData();
   initUploader();
 });
+
+// ===== STAFF PORTAL AUTHENTICATION =====
+const PORTAL_PASSWORD = "mjsd2026"; // Secure local password matching the 2026 workshop calendar
+
+function initAuth() {
+  const overlay = document.getElementById("adminLoginOverlay");
+  const layout = document.querySelector(".admin-layout");
+  const loginForm = document.getElementById("adminLoginForm");
+  const passwordInput = document.getElementById("adminPassword");
+  const errorMsg = document.getElementById("loginError");
+  const logoutBtn = document.getElementById("logoutBtn");
+
+  // Check if session storage has authenticated flag
+  const isAuth = sessionStorage.getItem("mjsd_authenticated") === "true";
+
+  if (isAuth) {
+    if (overlay) overlay.classList.add("hidden");
+    if (layout) layout.classList.remove("hidden");
+  } else {
+    if (overlay) overlay.classList.remove("hidden");
+    if (layout) layout.classList.add("hidden");
+  }
+
+  // Handle Login Submission
+  if (loginForm) {
+    loginForm.addEventListener("submit", (e) => {
+      e.preventDefault();
+      const enteredPassword = passwordInput.value.trim();
+
+      if (enteredPassword === PORTAL_PASSWORD) {
+        sessionStorage.setItem("mjsd_authenticated", "true");
+        if (errorMsg) errorMsg.style.display = "none";
+        if (passwordInput) passwordInput.value = "";
+        
+        // Transition animation to reveal dashboard
+        if (overlay) overlay.classList.add("hidden");
+        if (layout) layout.classList.remove("hidden");
+      } else {
+        if (errorMsg) {
+          errorMsg.textContent = "❌ Incorrect password. Please try again.";
+          errorMsg.style.display = "block";
+          
+          // Shake input field micro-animation for feedback
+          passwordInput.style.borderColor = "var(--status-cancelled)";
+          passwordInput.style.transform = "translateX(5px)";
+          setTimeout(() => passwordInput.style.transform = "translateX(-5px)", 70);
+          setTimeout(() => passwordInput.style.transform = "translateX(5px)", 140);
+          setTimeout(() => {
+            passwordInput.style.transform = "";
+            passwordInput.style.borderColor = "";
+          }, 210);
+        }
+      }
+    });
+  }
+
+  // Handle Logout button
+  if (logoutBtn) {
+    logoutBtn.addEventListener("click", (e) => {
+      e.preventDefault();
+      if (confirm("Are you sure you want to sign out of the staff portal?")) {
+        sessionStorage.removeItem("mjsd_authenticated");
+        window.location.reload();
+      }
+    });
+  }
+}
 
 // ===== DYNAMIC TAB SWITCHING =====
 function initTabs() {

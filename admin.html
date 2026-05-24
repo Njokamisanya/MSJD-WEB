@@ -11,7 +11,31 @@
 </head>
 <body class="admin-body">
 
-<div class="admin-layout">
+<!-- ===== LOGIN OVERLAY ===== -->
+<div class="admin-login-overlay" id="adminLoginOverlay">
+  <div class="login-card">
+    <div class="logo" style="justify-content: center; margin-bottom: 1rem; display: flex; align-items: center; gap: 0.8rem;">
+      <div class="logo-icon" style="font-size: 2.2rem; color: var(--red);">⚙</div>
+      <div class="logo-text" style="text-align: left;">
+        <span class="logo-main" style="display: block; font-family: 'Outfit', sans-serif; font-size: 1.4rem; font-weight: 800; color: #fff; letter-spacing: -0.5px;">MJSD</span>
+        <span class="logo-sub" style="display: block; font-size: 0.85rem; color: var(--red-light); font-weight: 600; text-transform: uppercase;">Staff Portal</span>
+      </div>
+    </div>
+    <h3>Staff Authentication</h3>
+    <p style="color: var(--gray); font-size: 0.9rem; margin-bottom: 1.5rem; line-height: 1.4;">Please enter the secure administrative password to access the workshop dashboard.</p>
+    <form id="adminLoginForm">
+      <div class="form-group" style="text-align: left;">
+        <label for="adminPassword" style="font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.5px; color: var(--gray);">Staff Password</label>
+        <input type="password" id="adminPassword" placeholder="••••••••" required style="width: 100%; box-sizing: border-box; padding: 0.85rem; border-radius: var(--border-radius); border: 1px solid rgba(255,255,255,0.06); background: rgba(0,0,0,0.3); color: #fff; margin-top: 0.5rem; outline: none; transition: var(--transition);" />
+      </div>
+      <button type="submit" class="btn-primary" style="width: 100%; border: none; padding: 0.85rem; margin-top: 1.5rem; cursor: pointer; font-weight: 600; border-radius: var(--border-radius);">Unlock Dashboard ✓</button>
+      <p id="loginError" style="color: var(--status-cancelled); font-size: 0.85rem; margin-top: 0.8rem; display: none; font-weight: 500;"></p>
+    </form>
+    <a href="index.html" style="color: var(--gray); font-size: 0.85rem; text-decoration: underline; display: block; margin-top: 1.8rem; transition: var(--transition);" onmouseover="this.style.color='#fff'" onmouseout="this.style.color='var(--gray)'">Return to Live Site</a>
+  </div>
+</div>
+
+<div class="admin-layout hidden">
   <!-- ===== SIDEBAR ===== -->
   <aside class="admin-sidebar">
     <div class="sidebar-header">
@@ -42,6 +66,9 @@
       <div class="nav-divider"></div>
       <a href="index.html" class="nav-item return-btn">
         <span class="nav-icon">🏠</span> Back to Live Site
+      </a>
+      <a href="#" class="nav-item return-btn" id="logoutBtn" style="border-color: rgba(231,76,60,0.15); color: var(--status-cancelled);">
+        <span class="nav-icon">🚪</span> Sign Out
       </a>
     </nav>
     

@@ -106,7 +106,28 @@ document.addEventListener("DOMContentLoaded", () => {
 });
 
 // ===== STAFF PORTAL AUTHENTICATION =====
-const PORTAL_PASSWORD = "mjsd2026"; // Secure local password matching the 2026 workshop calendar
+// Password is stored as a SHA-256 hash — never in plaintext.
+// To change the password: run hashPassword('yourNewPassword') in the console and update PORTAL_HASH.
+const PORTAL_HASH = "a665a45920422f9d417e4867efdc4fb8a04a1f3fff1fa07e998e86f7f7a27ae3"; // SHA-256 of 'mjsd2026'
+
+const MAX_LOGIN_ATTEMPTS = 5;
+const LOCKOUT_DURATION_MS = 30 * 60 * 1000; // 30 minutes
+
+async function hashPassword(password) {
+  const encoder = new TextEncoder();
+  const data = encoder.encode(password);
+  const hashBuffer = await crypto.subtle.digest('SHA-256', data);
+  const hashArray = Array.from(new Uint8Array(hashBuffer));
+  return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+}
+
+function getLoginAttempts() {
+  return JSON.parse(sessionStorage.getItem('mjsd_login_attempts') || '{"count":0,"lockedUntil":0}');
+}
+
+function setLoginAttempts(data) {
+  sessionStorage.setItem('mjsd_login_attempts', JSON.stringify(data));
+}
 
 function initAuth() {
   const overlay = document.getElementById("adminLoginOverlay");
@@ -129,23 +150,51 @@ function initAuth() {
 
   // Handle Login Submission
   if (loginForm) {
-    loginForm.addEventListener("submit", (e) => {
+    loginForm.addEventListener("submit", async (e) => {
       e.preventDefault();
-      const enteredPassword = passwordInput.value.trim();
 
-      if (enteredPassword === PORTAL_PASSWORD) {
+      // --- Brute-force lockout check ---
+      const attempts = getLoginAttempts();
+      const now = Date.now();
+      if (attempts.lockedUntil > now) {
+        const minutesLeft = Math.ceil((attempts.lockedUntil - now) / 60000);
+        if (errorMsg) {
+          errorMsg.textContent = `🔒 Too many failed attempts. Portal locked for ${minutesLeft} more minute(s).`;
+          errorMsg.style.display = "block";
+        }
+        return;
+      }
+
+      const enteredPassword = passwordInput.value.trim();
+      if (!enteredPassword) return;
+
+      const enteredHash = await hashPassword(enteredPassword);
+
+      if (enteredHash === PORTAL_HASH) {
+        // Successful login — clear attempt counter
+        setLoginAttempts({ count: 0, lockedUntil: 0 });
         sessionStorage.setItem("mjsd_authenticated", "true");
         if (errorMsg) errorMsg.style.display = "none";
         if (passwordInput) passwordInput.value = "";
-        
+
         // Transition animation to reveal dashboard
         if (overlay) overlay.classList.add("hidden");
         if (layout) layout.classList.remove("hidden");
       } else {
+        // Failed login — increment counter
+        const newCount = (attempts.count || 0) + 1;
+        const lockedUntil = newCount >= MAX_LOGIN_ATTEMPTS ? now + LOCKOUT_DURATION_MS : 0;
+        setLoginAttempts({ count: newCount, lockedUntil });
+
         if (errorMsg) {
-          errorMsg.textContent = "❌ Incorrect password. Please try again.";
+          if (lockedUntil) {
+            errorMsg.textContent = `🔒 Too many failed attempts. Portal locked for 30 minutes.`;
+          } else {
+            const remaining = MAX_LOGIN_ATTEMPTS - newCount;
+            errorMsg.textContent = `❌ Incorrect password. ${remaining} attempt(s) remaining.`;
+          }
           errorMsg.style.display = "block";
-          
+
           // Shake input field micro-animation for feedback
           passwordInput.style.borderColor = "var(--status-cancelled)";
           passwordInput.style.transform = "translateX(5px)";

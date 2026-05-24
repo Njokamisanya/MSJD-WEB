@@ -1,3 +1,27 @@
+// ===== SECURITY UTILITIES =====
+// Escapes special HTML characters to prevent XSS attacks.
+function sanitize(str) {
+  if (typeof str !== 'string') return '';
+  return str
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#x27;')
+    .replace(/\//g, '&#x2F;');
+}
+
+// Rate limiter — prevents form spam. Returns true if allowed, false if throttled.
+const _rateLimits = {};
+function rateLimitCheck(key, limitMs = 60000) {
+  const now = Date.now();
+  if (_rateLimits[key] && (now - _rateLimits[key]) < limitMs) {
+    return false;
+  }
+  _rateLimits[key] = now;
+  return true;
+}
+
 // ===== NAVBAR SCROLL =====
 const navbar = document.getElementById('navbar');
 window.addEventListener('scroll', () => {
@@ -62,16 +86,27 @@ const galleryGrid = document.getElementById('galleryGrid');
 function renderGallery(filter = 'all') {
   if (!galleryGrid) return;
   galleryGrid.innerHTML = '';
-  
+
   galleryItems.forEach(item => {
     if (filter === 'all' || item.cat === filter) {
       const itemEl = document.createElement('div');
       itemEl.className = 'gallery-item animate visible';
-      itemEl.dataset.cat = item.cat;
-      itemEl.innerHTML = `
-        <img src="${item.img}" alt="${item.alt}" onerror="this.src='https://placehold.co/600x450/16213e/ffffff?text=${encodeURIComponent(item.title)}'">
-        <div class="gallery-overlay"><span>${item.title}</span></div>
-      `;
+      itemEl.dataset.cat = sanitize(item.cat);
+
+      // Use safe DOM methods — never inject unsanitized innerHTML
+      const img = document.createElement('img');
+      img.src = sanitize(item.img);
+      img.alt = sanitize(item.alt);
+      img.onerror = () => { img.src = `https://placehold.co/600x450/16213e/ffffff?text=${encodeURIComponent(sanitize(item.title))}`; };
+
+      const overlay = document.createElement('div');
+      overlay.className = 'gallery-overlay';
+      const span = document.createElement('span');
+      span.textContent = sanitize(item.title); // textContent is always XSS-safe
+      overlay.appendChild(span);
+
+      itemEl.appendChild(img);
+      itemEl.appendChild(overlay);
       galleryGrid.appendChild(itemEl);
     }
   });
@@ -101,25 +136,41 @@ if (bookingForm) {
 
   bookingForm.addEventListener('submit', (e) => {
     e.preventDefault();
+
+    // Rate limit: one booking submission per 60 seconds
+    if (!rateLimitCheck('booking_submit', 60000)) {
+      alert('Please wait a moment before submitting again.');
+      return;
+    }
+
     const btn = document.getElementById('submitBtn');
     btn.textContent = 'Processing...';
     btn.disabled = true;
 
-    // Capture booking data
+    // Capture and sanitize booking data
+    const getValue = (id) => sanitize(document.getElementById(id)?.value?.trim() || '');
     const booking = {
       id: 'BK-' + Date.now().toString().slice(-6),
-      fname: document.getElementById('fname').value,
-      lname: document.getElementById('lname').value,
-      phone: document.getElementById('phone').value,
-      email: document.getElementById('email').value || 'N/A',
-      vehicle: document.getElementById('vehicle').value,
-      service: document.getElementById('service').value,
-      date: document.getElementById('date').value,
-      time: document.getElementById('time').value,
-      notes: document.getElementById('notes').value || 'No notes',
+      fname: getValue('fname'),
+      lname: getValue('lname'),
+      phone: getValue('phone'),
+      email: getValue('email') || 'N/A',
+      vehicle: getValue('vehicle'),
+      service: getValue('service'),
+      date: getValue('date'),
+      time: getValue('time'),
+      notes: getValue('notes') || 'No notes',
       status: 'Pending',
       createdAt: new Date().toLocaleString()
     };
+
+    // Validate phone is numeric
+    if (!/^[\d\s\+\-]{7,15}$/.test(booking.phone)) {
+      alert('Please enter a valid phone number.');
+      btn.textContent = 'Confirm Appointment ✓';
+      btn.disabled = false;
+      return;
+    }
 
     // Save to localStorage
     const existingBookings = JSON.parse(localStorage.getItem('mjsd_bookings')) || [];
@@ -153,17 +204,25 @@ const inquirySuccess = document.getElementById('inquirySuccess');
 if (inquiryForm) {
   inquiryForm.addEventListener('submit', (e) => {
     e.preventDefault();
+
+    // Rate limit: one inquiry per 60 seconds
+    if (!rateLimitCheck('inquiry_submit', 60000)) {
+      alert('Please wait a moment before submitting again.');
+      return;
+    }
+
     const btn = inquiryForm.querySelector('button[type="submit"]');
     btn.textContent = 'Sending...';
     btn.disabled = true;
 
-    // Capture inquiry data
+    // Capture and sanitize inquiry data
+    const getVal = (id) => sanitize(document.getElementById(id)?.value?.trim() || '');
     const inquiry = {
       id: 'INQ-' + Date.now().toString().slice(-6),
-      name: document.getElementById('iname').value,
-      phone: document.getElementById('iphone').value,
-      subject: document.getElementById('isubject').value || 'General Inquiry',
-      message: document.getElementById('imessage').value,
+      name: getVal('iname'),
+      phone: getVal('iphone'),
+      subject: getVal('isubject') || 'General Inquiry',
+      message: getVal('imessage'),
       status: 'Unread',
       createdAt: new Date().toLocaleString()
     };
@@ -304,68 +363,44 @@ if (modelSearchInput && searchSuggestions) {
       });
     });
 
-    if (matches.length > 0) {
-      searchSuggestions.style.display = 'block';
-      searchSuggestions.innerHTML = `
-        <div class="suggestions-title">Matching Cars found:</div>
-        <div class="suggestions-list">
-          ${matches.slice(0, 8).map(m => `
-            <div class="suggestion-pill" data-vehicle="${m.brand} ${m.model}">
-              ${m.brand} ${m.model}
-            </div>
-          `).join('')}
-        </div>
-      `;
+    // Build suggestions using safe DOM methods — no innerHTML with user input
+    searchSuggestions.innerHTML = '';
+    const title = document.createElement('div');
+    title.className = 'suggestions-title';
+    const list = document.createElement('div');
+    list.className = 'suggestions-list';
 
-      // Attach click events to pills
-      searchSuggestions.querySelectorAll('.suggestion-pill').forEach(pill => {
-        pill.addEventListener('click', () => {
-          const val = pill.dataset.vehicle;
-          const vehicleInput = document.getElementById('vehicle');
-          if (vehicleInput) {
-            vehicleInput.value = val;
-            vehicleInput.focus();
-          }
-
-          // Clear suggestions and search input
-          searchSuggestions.style.display = 'none';
-          searchSuggestions.innerHTML = '';
-          modelSearchInput.value = '';
-
-          // Smooth scroll to booking
-          const bookingSection = document.getElementById('booking');
-          if (bookingSection) {
-            bookingSection.scrollIntoView({ behavior: 'smooth' });
-          }
-        });
-      });
-    } else {
-      searchSuggestions.style.display = 'block';
-      searchSuggestions.innerHTML = `
-        <div class="suggestions-title" style="color: var(--red-light);">No exact matching model found, but you can book any model!</div>
-        <div class="suggestions-list">
-          <div class="suggestion-pill" data-vehicle="${e.target.value}">
-            Book "${e.target.value}" Anyway ➔
-          </div>
-        </div>
-      `;
-      
-      searchSuggestions.querySelector('.suggestion-pill').addEventListener('click', () => {
+    const addPill = (label, vehicleValue) => {
+      const pill = document.createElement('div');
+      pill.className = 'suggestion-pill';
+      pill.textContent = label; // textContent is always XSS-safe
+      pill.dataset.vehicle = vehicleValue;
+      pill.addEventListener('click', () => {
         const vehicleInput = document.getElementById('vehicle');
-        if (vehicleInput) {
-          vehicleInput.value = e.target.value;
-          vehicleInput.focus();
-        }
+        if (vehicleInput) { vehicleInput.value = vehicleValue; vehicleInput.focus(); }
         searchSuggestions.style.display = 'none';
         searchSuggestions.innerHTML = '';
         modelSearchInput.value = '';
-
         const bookingSection = document.getElementById('booking');
-        if (bookingSection) {
-          bookingSection.scrollIntoView({ behavior: 'smooth' });
-        }
+        if (bookingSection) bookingSection.scrollIntoView({ behavior: 'smooth' });
       });
+      list.appendChild(pill);
+    };
+
+    if (matches.length > 0) {
+      title.textContent = 'Matching Cars found:';
+      matches.slice(0, 8).forEach(m => addPill(`${m.brand} ${m.model}`, `${m.brand} ${m.model}`));
+    } else {
+      title.textContent = 'No exact match found — you can still book any model!';
+      title.style.color = 'var(--red-light)';
+      // Limit raw user input: only pass if safe (max 60 chars, alphanumeric + spaces)
+      const safeQuery = query.replace(/[^a-zA-Z0-9\s\-]/g, '').slice(0, 60);
+      if (safeQuery) addPill(`Book "${safeQuery}" Anyway ➔`, safeQuery);
     }
+
+    searchSuggestions.appendChild(title);
+    searchSuggestions.appendChild(list);
+    searchSuggestions.style.display = 'block';
   });
 
   // Close suggestions if user clicks outside

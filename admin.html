@@ -1,0 +1,258 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>MJSD Mechanics | Staff Control Dashboard</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800;900&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
+  <link rel="stylesheet" href="admin.css">
+</head>
+<body class="admin-body">
+
+<div class="admin-layout">
+  <!-- ===== SIDEBAR ===== -->
+  <aside class="admin-sidebar">
+    <div class="sidebar-header">
+      <div class="logo">
+        <div class="logo-icon">⚙</div>
+        <div class="logo-text">
+          <span class="logo-main">MJSD</span>
+          <span class="logo-sub">Staff Portal</span>
+        </div>
+      </div>
+    </div>
+    
+    <nav class="sidebar-nav">
+      <a href="#overview" class="nav-item active" data-tab="overview">
+        <span class="nav-icon">📊</span> Overview
+      </a>
+      <a href="#bookings" class="nav-item" data-tab="bookings">
+        <span class="nav-icon">📅</span> Appointments
+        <span class="badge" id="bookingsCountBadge">0</span>
+      </a>
+      <a href="#messages" class="nav-item" data-tab="messages">
+        <span class="nav-icon">✉️</span> Client Messages
+        <span class="badge" id="messagesCountBadge">0</span>
+      </a>
+      <a href="#uploader" class="nav-item" data-tab="uploader">
+        <span class="nav-icon">📸</span> Gallery Manager
+      </a>
+      <div class="nav-divider"></div>
+      <a href="index.html" class="nav-item return-btn">
+        <span class="nav-icon">🏠</span> Back to Live Site
+      </a>
+    </nav>
+    
+    <div class="sidebar-footer">
+      <div>Logged in as:</div>
+      <strong>MJSD Admin</strong>
+    </div>
+  </aside>
+
+  <!-- ===== MAIN CONTENT ===== -->
+  <main class="admin-main">
+    <header class="admin-header">
+      <div class="header-title">
+        <h1 id="pageTitle">Overview</h1>
+        <p id="pageDescription">Real-time status overview of MJSD Mechanics workshop</p>
+      </div>
+      <div class="header-actions">
+        <button class="btn-refresh" onclick="loadAllData()">🔄 Sync Data</button>
+      </div>
+    </header>
+
+    <div class="container-fluid">
+      <!-- ==================== OVERVIEW TAB ==================== -->
+      <section class="admin-tab-content active" id="tab-overview">
+        <!-- Stats Grid -->
+        <div class="stats-grid">
+          <div class="stat-widget">
+            <div class="widget-icon bg-red">📅</div>
+            <div class="widget-info">
+              <span class="widget-label">Total Bookings</span>
+              <h3 id="statTotalBookings">0</h3>
+            </div>
+          </div>
+          <div class="stat-widget">
+            <div class="widget-icon bg-yellow">⏳</div>
+            <div class="widget-info">
+              <span class="widget-label">Pending Reviews</span>
+              <h3 id="statPendingBookings">0</h3>
+            </div>
+          </div>
+          <div class="stat-widget">
+            <div class="widget-icon bg-green">✉️</div>
+            <div class="widget-info">
+              <span class="widget-label">Client Messages</span>
+              <h3 id="statTotalInquiries">0</h3>
+            </div>
+          </div>
+          <div class="stat-widget">
+            <div class="widget-icon bg-blue">📸</div>
+            <div class="widget-info">
+              <span class="widget-label">Gallery Photos</span>
+              <h3 id="statTotalPhotos">0</h3>
+            </div>
+          </div>
+        </div>
+
+        <div class="overview-grid">
+          <!-- Recent Bookings Summary -->
+          <div class="overview-card">
+            <div class="card-header">
+              <h3>Upcoming Appointments</h3>
+              <a href="#bookings" onclick="switchTab('bookings')" class="card-link">View All →</a>
+            </div>
+            <div class="table-responsive">
+              <table class="admin-table">
+                <thead>
+                  <tr>
+                    <th>Customer</th>
+                    <th>Vehicle</th>
+                    <th>Service</th>
+                    <th>Date & Time</th>
+                    <th>Status</th>
+                  </tr>
+                </thead>
+                <tbody id="recentBookingsTableBody">
+                  <!-- Generated via JS -->
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          <!-- Quick Messages Summary -->
+          <div class="overview-card">
+            <div class="card-header">
+              <h3>Recent Customer Inquiries</h3>
+              <a href="#messages" onclick="switchTab('messages')" class="card-link">Inbox →</a>
+            </div>
+            <div class="inbox-list" id="recentInboxList">
+              <!-- Generated via JS -->
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ==================== BOOKINGS TAB ==================== -->
+      <section class="admin-tab-content" id="tab-bookings">
+        <div class="filter-bar">
+          <div class="search-input-wrap">
+            <span class="search-icon">🔍</span>
+            <input type="text" id="bookingSearchInput" placeholder="Search by customer name, phone or ID..." onkeyup="filterBookingsTable()">
+          </div>
+          <div class="filter-dropdowns">
+            <select id="bookingServiceFilter" onchange="filterBookingsTable()">
+              <option value="all">All Services</option>
+              <option>Engine Diagnosis</option>
+              <option>Brake Service</option>
+              <option>Oil & Fluid Change</option>
+              <option>Suspension Repair</option>
+              <option>General Maintenance</option>
+              <option>Electrical / AC Service</option>
+            </select>
+            <select id="bookingStatusFilter" onchange="filterBookingsTable()">
+              <option value="all">All Statuses</option>
+              <option value="Pending">Pending</option>
+              <option value="Confirmed">Confirmed</option>
+              <option value="Completed">Completed</option>
+              <option value="Cancelled">Cancelled</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="overview-card">
+          <div class="table-responsive">
+            <table class="admin-table full-table">
+              <thead>
+                <tr>
+                  <th>Booking ID</th>
+                  <th>Customer Name</th>
+                  <th>Phone Number</th>
+                  <th>Vehicle Details</th>
+                  <th>Requested Service</th>
+                  <th>Date & Time</th>
+                  <th>Status</th>
+                  <th>Action</th>
+                </tr>
+              </thead>
+              <tbody id="fullBookingsTableBody">
+                <!-- Generated via JS -->
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <!-- ==================== MESSAGES TAB ==================== -->
+      <section class="admin-tab-content" id="tab-messages">
+        <div class="messages-layout">
+          <div class="inbox-grid" id="fullInboxList">
+            <!-- Generated via JS -->
+          </div>
+        </div>
+      </section>
+
+      <!-- ==================== GALLERY TAB ==================== -->
+      <section class="admin-tab-content" id="tab-uploader">
+        <div class="gallery-mgmt-grid">
+          <!-- Uploader Form Card -->
+          <div class="overview-card">
+            <div class="card-header">
+              <h3>Upload New Project Photo</h3>
+            </div>
+            
+            <form class="modal-form" id="adminUploadForm" style="margin-top: 1rem;">
+              <div class="form-group">
+                <label>Select Photo *</label>
+                <div class="upload-zone" id="uploadZone">
+                  <span class="upload-zone-icon">📸</span>
+                  <p class="upload-zone-text">Click to choose a photo or drag & drop here</p>
+                  <p class="upload-zone-sub">Supports PNG, JPG, JPEG (Max 5MB)</p>
+                  <input type="file" id="imageInput" accept="image/*" required style="display:none" />
+                  <div class="upload-preview" id="uploadPreview"></div>
+                </div>
+              </div>
+              
+              <div class="form-group" style="margin-top: 1rem;">
+                <label for="uploadTitle">Vehicle Details *</label>
+                <input type="text" id="uploadTitle" placeholder="e.g. Engine Rebuild – Toyota Land Cruiser" required />
+              </div>
+              
+              <div class="form-group" style="margin-top: 1rem;">
+                <label for="uploadCategory">Category *</label>
+                <select id="uploadCategory" required>
+                  <option value="">Select a category...</option>
+                  <option value="engine">Engine Diagnostics & Repair</option>
+                  <option value="brakes">Brakes & Safety Service</option>
+                  <option value="suspension">Suspension & Chassis</option>
+                </select>
+              </div>
+              
+              <button type="submit" class="btn-primary" style="margin-top: 1.5rem; width: 100%; border: none; cursor: pointer; padding: .8rem;">Upload & Publish ✓</button>
+            </form>
+          </div>
+
+          <!-- Existing Gallery Card -->
+          <div class="overview-card">
+            <div class="card-header" style="margin-bottom: 1.5rem;">
+              <h3>Live Gallery Items (<span id="galleryCountText">0</span>)</h3>
+              <p style="color: var(--gray); font-size: .85rem; margin-top: .2rem;">Click the trash icon on any image to instantly delete it from the website.</p>
+            </div>
+            
+            <div class="admin-gallery-grid" id="adminGalleryGrid">
+              <!-- Generated via JS -->
+            </div>
+          </div>
+        </div>
+      </section>
+    </div>
+  </main>
+</div>
+
+<!-- Scripts -->
+<script src="admin.js"></script>
+</body>
+</html>

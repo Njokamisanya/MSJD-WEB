@@ -6,12 +6,37 @@ window.addEventListener('scroll', () => {
   document.getElementById('floatCall').classList.toggle('show', window.scrollY > 400);
 });
 
-// ===== HAMBURGER =====
+// ===== HAMBURGER & NAVIGATION DROPDOWN =====
 const hamburger = document.getElementById('hamburger');
 const navLinks = document.getElementById('navLinks');
-hamburger.addEventListener('click', () => navLinks.classList.toggle('open'));
+const servicesDropdown = document.getElementById('servicesDropdown');
+
+hamburger.addEventListener('click', () => {
+  navLinks.classList.toggle('open');
+  if (!navLinks.classList.contains('open') && servicesDropdown) {
+    servicesDropdown.classList.remove('active');
+  }
+});
+
+// Dropdown Mobile Toggle Logic
+if (servicesDropdown) {
+  const trigger = servicesDropdown.querySelector('.dropdown-trigger');
+  trigger.addEventListener('click', (e) => {
+    if (window.innerWidth <= 768) {
+      e.preventDefault();
+      servicesDropdown.classList.toggle('active');
+    }
+  });
+}
+
 document.querySelectorAll('.nav-links a').forEach(a => {
-  a.addEventListener('click', () => navLinks.classList.remove('open'));
+  a.addEventListener('click', () => {
+    // If clicking a sub-link inside dropdown, close mobile dropdown too
+    if (a.closest('.dropdown-menu')) {
+      if (servicesDropdown) servicesDropdown.classList.remove('active');
+    }
+    navLinks.classList.remove('open');
+  });
 });
 
 // ===== BACK TO TOP =====
@@ -164,19 +189,189 @@ const observer = new IntersectionObserver((entries) => {
   });
 }, { threshold: 0.1 });
 
-document.querySelectorAll('.service-card, .review-card, .gallery-item, .why-item, .info-card, .stat').forEach(el => {
-  el.classList.add('animate');
-  observer.observe(el);
-});
+function registerAnimations() {
+  document.querySelectorAll('.service-card, .review-card, .gallery-item, .why-item, .info-card, .stat, .brands-section, .brands-ticker-wrap, .brands-grid-wrap, .model-search-wrap, .animate').forEach(el => {
+    el.classList.add('animate');
+    observer.observe(el);
+  });
+}
+registerAnimations();
 
 // ===== ACTIVE NAV LINK ON SCROLL =====
-const sections = document.querySelectorAll('section[id]');
+const sections = document.querySelectorAll('section[id], div[id]');
 window.addEventListener('scroll', () => {
   let current = '';
   sections.forEach(section => {
-    if (window.scrollY >= section.offsetTop - 120) current = section.id;
+    if (window.scrollY >= section.offsetTop - 150) current = section.id;
   });
   document.querySelectorAll('.nav-links a').forEach(link => {
-    link.style.color = link.getAttribute('href') === `#${current}` ? '#fff' : '';
+    const isActive = link.getAttribute('href') === `#${current}`;
+    link.style.color = isActive ? 'var(--red)' : '';
   });
 });
+
+// ===== DAY/NIGHT MODE SWITCHER =====
+const themeToggleBtn = document.getElementById('themeToggle');
+const toggleIcon = themeToggleBtn ? themeToggleBtn.querySelector('.toggle-icon') : null;
+
+// Apply initial theme immediately to avoid flash
+function initTheme() {
+  const savedTheme = localStorage.getItem('mjsd_theme') || 'dark';
+  if (savedTheme === 'light') {
+    document.body.classList.add('light-mode');
+    if (toggleIcon) toggleIcon.textContent = '☀️';
+  } else {
+    document.body.classList.remove('light-mode');
+    if (toggleIcon) toggleIcon.textContent = '🌙';
+  }
+}
+initTheme();
+
+if (themeToggleBtn) {
+  themeToggleBtn.addEventListener('click', () => {
+    const isLight = document.body.classList.toggle('light-mode');
+    localStorage.setItem('mjsd_theme', isLight ? 'light' : 'dark');
+    
+    if (toggleIcon) {
+      toggleIcon.textContent = isLight ? '☀️' : '🌙';
+    }
+    
+    // Smooth micro-animation click effect
+    themeToggleBtn.style.transform = 'scale(0.85) rotate(45deg)';
+    setTimeout(() => {
+      themeToggleBtn.style.transform = '';
+    }, 150);
+  });
+}
+
+// ===== BRANDS AND VEHICLE MODELS INTERACTIVE REGISTRATION =====
+const popularModels = {
+  'Toyota': ['Land Cruiser', 'Hilux', 'Prado', 'RAV4', 'Fortuner', 'Harrier', 'Vanguard'],
+  'Audi': ['A4', 'A6', 'Q5', 'Q7', 'e-tron', 'Q8', 'A8'],
+  'BMW': ['3 Series', '5 Series', 'X3', 'X5', 'X7', 'M5', 'iX'],
+  'Mercedes-Benz': ['C-Class', 'E-Class', 'GLC', 'GLE', 'G-Wagon', 'S-Class'],
+  'Nissan': ['Patrol', 'Navara', 'X-Trail', 'Qashqai', 'Sylphy', 'Murano'],
+  'Subaru': ['Forester', 'Outback', 'Impreza', 'XV', 'Legacy', 'WRX'],
+  'Hyundai': ['Tucson', 'Santa Fe', 'Elantra', 'Creta', 'Palisade'],
+  'Ford': ['Ranger', 'Everest', 'Explorer', 'F-150', 'Mustang'],
+  'Lexus': ['RX350', 'LX570', 'NX200t', 'IS250', 'GX460'],
+  'Land Rover': ['Range Rover', 'Defender', 'Discovery', 'Evoque', 'Velar'],
+  'Porsche': ['Cayenne', 'Macan', 'Panamera', '911 Carrera', 'Taycan'],
+  'Jeep': ['Grand Cherokee', 'Wrangler', 'Cherokee', 'Compass']
+};
+
+// Set up showcase card click handlers to automatically populate the booking form
+document.querySelectorAll('.brand-showcase-card').forEach(card => {
+  card.addEventListener('click', () => {
+    // Clear active status and select current
+    document.querySelectorAll('.brand-showcase-card').forEach(c => c.classList.remove('active'));
+    card.classList.add('active');
+    
+    const brand = card.dataset.brand;
+    const vehicleInput = document.getElementById('vehicle');
+    if (vehicleInput) {
+      vehicleInput.value = brand;
+      vehicleInput.focus();
+    }
+    
+    // Smooth scroll to booking
+    const bookingSection = document.getElementById('booking');
+    if (bookingSection) {
+      bookingSection.scrollIntoView({ behavior: 'smooth' });
+    }
+  });
+});
+
+// Models Search Box Fuzzy Matching
+const modelSearchInput = document.getElementById('modelSearchInput');
+const searchSuggestions = document.getElementById('searchSuggestions');
+
+if (modelSearchInput && searchSuggestions) {
+  modelSearchInput.addEventListener('input', (e) => {
+    const query = e.target.value.toLowerCase().trim();
+    if (!query) {
+      searchSuggestions.style.display = 'none';
+      searchSuggestions.innerHTML = '';
+      return;
+    }
+
+    const matches = [];
+    Object.entries(popularModels).forEach(([brand, models]) => {
+      models.forEach(model => {
+        if (model.toLowerCase().includes(query) || brand.toLowerCase().includes(query)) {
+          matches.push({ brand, model });
+        }
+      });
+    });
+
+    if (matches.length > 0) {
+      searchSuggestions.style.display = 'block';
+      searchSuggestions.innerHTML = `
+        <div class="suggestions-title">Matching Cars found:</div>
+        <div class="suggestions-list">
+          ${matches.slice(0, 8).map(m => `
+            <div class="suggestion-pill" data-vehicle="${m.brand} ${m.model}">
+              ${m.brand} ${m.model}
+            </div>
+          `).join('')}
+        </div>
+      `;
+
+      // Attach click events to pills
+      searchSuggestions.querySelectorAll('.suggestion-pill').forEach(pill => {
+        pill.addEventListener('click', () => {
+          const val = pill.dataset.vehicle;
+          const vehicleInput = document.getElementById('vehicle');
+          if (vehicleInput) {
+            vehicleInput.value = val;
+            vehicleInput.focus();
+          }
+
+          // Clear suggestions and search input
+          searchSuggestions.style.display = 'none';
+          searchSuggestions.innerHTML = '';
+          modelSearchInput.value = '';
+
+          // Smooth scroll to booking
+          const bookingSection = document.getElementById('booking');
+          if (bookingSection) {
+            bookingSection.scrollIntoView({ behavior: 'smooth' });
+          }
+        });
+      });
+    } else {
+      searchSuggestions.style.display = 'block';
+      searchSuggestions.innerHTML = `
+        <div class="suggestions-title" style="color: var(--red-light);">No exact matching model found, but you can book any model!</div>
+        <div class="suggestions-list">
+          <div class="suggestion-pill" data-vehicle="${e.target.value}">
+            Book "${e.target.value}" Anyway ➔
+          </div>
+        </div>
+      `;
+      
+      searchSuggestions.querySelector('.suggestion-pill').addEventListener('click', () => {
+        const vehicleInput = document.getElementById('vehicle');
+        if (vehicleInput) {
+          vehicleInput.value = e.target.value;
+          vehicleInput.focus();
+        }
+        searchSuggestions.style.display = 'none';
+        searchSuggestions.innerHTML = '';
+        modelSearchInput.value = '';
+
+        const bookingSection = document.getElementById('booking');
+        if (bookingSection) {
+          bookingSection.scrollIntoView({ behavior: 'smooth' });
+        }
+      });
+    }
+  });
+
+  // Close suggestions if user clicks outside
+  document.addEventListener('click', (e) => {
+    if (!modelSearchInput.contains(e.target) && !searchSuggestions.contains(e.target)) {
+      searchSuggestions.style.display = 'none';
+    }
+  });
+}

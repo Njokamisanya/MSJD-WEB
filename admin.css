@@ -3,20 +3,21 @@
    ========================================================================== */
 
 :root {
-  --admin-bg: #0b0b10;
-  --admin-card: rgba(22, 22, 33, 0.6);
-  --admin-card-border: rgba(255, 255, 255, 0.04);
-  --admin-sidebar-bg: #07070b;
-  --admin-sidebar-border: rgba(255, 255, 255, 0.03);
-  --status-pending: #f39c12;
-  --status-confirmed: #3498db;
-  --status-completed: #2ecc71;
-  --status-cancelled: #e74c3c;
+  --admin-bg: #070a13; /* Midnight slate navy */
+  --admin-card: rgba(15, 23, 42, 0.6); /* Slate-900 transparent cards */
+  --admin-card-border: rgba(249, 115, 22, 0.12); /* Sunrise orange borders */
+  --admin-sidebar-bg: #03050a; /* Darkest slate navy */
+  --admin-sidebar-border: rgba(249, 115, 22, 0.08);
+  --status-pending: #f59e0b;
+  --status-confirmed: #f97316; /* Sunrise Orange */
+  --status-completed: #10b981;
+  --status-cancelled: #ef4444;
   
-  --bg-red-glow: rgba(230, 57, 70, 0.15);
-  --bg-yellow-glow: rgba(243, 156, 18, 0.15);
-  --bg-green-glow: rgba(46, 204, 113, 0.15);
-  --bg-blue-glow: rgba(52, 152, 219, 0.15);
+  --red: #f97316; /* Sunrise Orange primary accent */
+  --bg-red-glow: rgba(249, 115, 22, 0.15);
+  --bg-yellow-glow: rgba(245, 158, 11, 0.15);
+  --bg-green-glow: rgba(16, 185, 129, 0.15);
+  --bg-blue-glow: rgba(249, 115, 22, 0.15);
 }
 
 .admin-body {
@@ -83,9 +84,9 @@
 
 .nav-item.active {
   color: #fff;
-  background: linear-gradient(135deg, rgba(230, 57, 70, 0.15), rgba(230, 57, 70, 0.03));
+  background: linear-gradient(135deg, rgba(217, 119, 6, 0.15), rgba(217, 119, 6, 0.03));
   border-left: 3px solid var(--red);
-  box-shadow: 0 4px 15px rgba(230, 57, 70, 0.1);
+  box-shadow: 0 4px 15px rgba(217, 119, 6, 0.1);
 }
 
 .nav-icon {
@@ -100,7 +101,7 @@
   border-radius: 20px;
   margin-left: auto;
   font-weight: bold;
-  box-shadow: 0 2px 8px rgba(230, 57, 70, 0.4);
+  box-shadow: 0 2px 8px rgba(217, 119, 6, 0.4);
 }
 
 .nav-divider {

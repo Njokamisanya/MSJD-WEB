@@ -10,6 +10,14 @@
   <link rel="stylesheet" href="style.css" />
 </head>
 <body>
+<script>
+  (function() {
+    const theme = localStorage.getItem('mjsd_theme') || 'dark';
+    if (theme === 'light') {
+      document.body.classList.add('light-mode');
+    }
+  })();
+</script>
 
 <!-- ===== NAVBAR ===== -->
 <header class="navbar" id="navbar">
@@ -23,7 +31,17 @@
     </a>
     <nav class="nav-links" id="navLinks">
       <a href="#home">Home</a>
-      <a href="#services">Services</a>
+      <div class="nav-dropdown" id="servicesDropdown">
+        <a href="#services" class="dropdown-trigger">Services <span class="chevron">▼</span></a>
+        <div class="dropdown-menu">
+          <a href="#services">🔬 Engine Diagnosis</a>
+          <a href="#services">🛞 Brakes & Safety</a>
+          <a href="#services">🛢️ Oil & Fluid Services</a>
+          <a href="#services">🔧 Suspension & Repair</a>
+          <a href="#services">🔩 General Maintenance</a>
+          <a href="#services">🚗 Body & Electrical</a>
+        </div>
+      </div>
       <a href="#gallery">Gallery</a>
       <a href="#booking">Book Now</a>
       <a href="#contact">Contact</a>
@@ -31,6 +49,9 @@
     <div class="nav-cta">
       <a href="tel:+255694666888" class="btn-call">📞 Call Us</a>
     </div>
+    <button id="themeToggle" class="btn-theme-toggle" aria-label="Toggle theme" style="margin-left: 0.5rem;">
+      <span class="toggle-icon">🌙</span>
+    </button>
     <button class="hamburger" id="hamburger" aria-label="Toggle menu">
       <span></span><span></span><span></span>
     </button>
@@ -41,19 +62,11 @@
 <section class="hero" id="home">
   <div class="hero-overlay"></div>
   <div class="hero-content">
-    <div class="hero-badge">🏆 Morogoro's Most Trusted Auto Shop</div>
-    <h1>Your Car Deserves<br/><span class="gradient-text">Expert Care</span></h1>
-    <p>Professional auto maintenance, engine diagnosis, brake & oil services, and suspension repair. Serving Morogoro-Mkundi with excellence since day one.</p>
+    <h1>Affordable Solutions<br/><span class="gradient-text">For Your Car</span></h1>
+    <p>Welcome to MJSD Mechanics. When you bring your vehicle to our shop, you can count on honest, reliable, high-quality auto service with integrity. We stand behind every repair and service with expert craftsmanship and transparent support.</p>
     <div class="hero-actions">
       <a href="#booking" class="btn-primary">Book Appointment</a>
       <a href="#services" class="btn-outline">Our Services</a>
-    </div>
-    <div class="hero-stats">
-      <div class="stat"><span class="stat-num">1200+</span><span class="stat-label">Cars Serviced</span></div>
-      <div class="stat-divider"></div>
-      <div class="stat"><span class="stat-num">8+</span><span class="stat-label">Years Experience</span></div>
-      <div class="stat-divider"></div>
-      <div class="stat"><span class="stat-num">98%</span><span class="stat-label">Customer Satisfaction</span></div>
     </div>
   </div>
   <div class="hero-scroll">
@@ -80,6 +93,275 @@
     <div><strong>Emergency</strong><br/>24/7 Roadside Assistance</div>
   </div>
 </div>
+
+<!-- ===== BRANDS WE SERVICE ===== -->
+<section class="brands-section" id="brands">
+  <div class="container">
+    <div class="section-header animate">
+      <span class="section-tag">Supported Vehicles</span>
+      <h2>Supported Vehicle Specialists</h2>
+      <p>We are fully equipped with advanced OEM diagnostics and specialty tools to service, program, and maintain your specific brand.</p>
+    </div>
+    
+    <!-- Modern Supported Brands Showcase Grid -->
+    <div class="brands-showcase-grid animate">
+      <div class="brand-showcase-card" data-brand="Toyota">
+        <div class="brand-showcase-header">
+          <span class="brand-showcase-flag">🇯🇵</span>
+          <div>
+            <h3 class="brand-showcase-name">Toyota</h3>
+            <span class="brand-showcase-origin">Japanese Precision</span>
+          </div>
+        </div>
+        <div>
+          <div class="brand-models-list-label">Popular Serviced Models:</div>
+          <div class="brand-models-pills">
+            <span class="brand-models-pill">Land Cruiser</span>
+            <span class="brand-models-pill">Hilux</span>
+            <span class="brand-models-pill">Prado</span>
+            <span class="brand-models-pill">RAV4</span>
+            <span class="brand-models-pill">Fortuner</span>
+            <span class="brand-models-pill">Harrier</span>
+            <span class="brand-models-pill">Vanguard</span>
+          </div>
+        </div>
+      </div>
+      
+      <div class="brand-showcase-card" data-brand="Audi">
+        <div class="brand-showcase-header">
+          <span class="brand-showcase-flag">🇩🇪</span>
+          <div>
+            <h3 class="brand-showcase-name">Audi</h3>
+            <span class="brand-showcase-origin">German Engineering</span>
+          </div>
+        </div>
+        <div>
+          <div class="brand-models-list-label">Popular Serviced Models:</div>
+          <div class="brand-models-pills">
+            <span class="brand-models-pill">A4</span>
+            <span class="brand-models-pill">A6</span>
+            <span class="brand-models-pill">Q5</span>
+            <span class="brand-models-pill">Q7</span>
+            <span class="brand-models-pill">Q8</span>
+            <span class="brand-models-pill">e-tron</span>
+          </div>
+        </div>
+      </div>
+      
+      <div class="brand-showcase-card" data-brand="BMW">
+        <div class="brand-showcase-header">
+          <span class="brand-showcase-flag">🇩🇪</span>
+          <div>
+            <h3 class="brand-showcase-name">BMW</h3>
+            <span class="brand-showcase-origin">German Engineering</span>
+          </div>
+        </div>
+        <div>
+          <div class="brand-models-list-label">Popular Serviced Models:</div>
+          <div class="brand-models-pills">
+            <span class="brand-models-pill">3 Series</span>
+            <span class="brand-models-pill">5 Series</span>
+            <span class="brand-models-pill">X3</span>
+            <span class="brand-models-pill">X5</span>
+            <span class="brand-models-pill">X7</span>
+            <span class="brand-models-pill">iX</span>
+          </div>
+        </div>
+      </div>
+      
+      <div class="brand-showcase-card" data-brand="Mercedes-Benz">
+        <div class="brand-showcase-header">
+          <span class="brand-showcase-flag">🇩🇪</span>
+          <div>
+            <h3 class="brand-showcase-name">Mercedes-Benz</h3>
+            <span class="brand-showcase-origin">German Engineering</span>
+          </div>
+        </div>
+        <div>
+          <div class="brand-models-list-label">Popular Serviced Models:</div>
+          <div class="brand-models-pills">
+            <span class="brand-models-pill">C-Class</span>
+            <span class="brand-models-pill">E-Class</span>
+            <span class="brand-models-pill">GLC</span>
+            <span class="brand-models-pill">GLE</span>
+            <span class="brand-models-pill">G-Wagon</span>
+            <span class="brand-models-pill">S-Class</span>
+          </div>
+        </div>
+      </div>
+      
+      <div class="brand-showcase-card" data-brand="Nissan">
+        <div class="brand-showcase-header">
+          <span class="brand-showcase-flag">🇯🇵</span>
+          <div>
+            <h3 class="brand-showcase-name">Nissan</h3>
+            <span class="brand-showcase-origin">Japanese Precision</span>
+          </div>
+        </div>
+        <div>
+          <div class="brand-models-list-label">Popular Serviced Models:</div>
+          <div class="brand-models-pills">
+            <span class="brand-models-pill">Patrol</span>
+            <span class="brand-models-pill">Navara</span>
+            <span class="brand-models-pill">X-Trail</span>
+            <span class="brand-models-pill">Qashqai</span>
+            <span class="brand-models-pill">Sylphy</span>
+            <span class="brand-models-pill">Murano</span>
+          </div>
+        </div>
+      </div>
+      
+      <div class="brand-showcase-card" data-brand="Subaru">
+        <div class="brand-showcase-header">
+          <span class="brand-showcase-flag">🇯🇵</span>
+          <div>
+            <h3 class="brand-showcase-name">Subaru</h3>
+            <span class="brand-showcase-origin">Japanese Precision</span>
+          </div>
+        </div>
+        <div>
+          <div class="brand-models-list-label">Popular Serviced Models:</div>
+          <div class="brand-models-pills">
+            <span class="brand-models-pill">Forester</span>
+            <span class="brand-models-pill">Outback</span>
+            <span class="brand-models-pill">Impreza</span>
+            <span class="brand-models-pill">XV</span>
+            <span class="brand-models-pill">Legacy</span>
+            <span class="brand-models-pill">WRX</span>
+          </div>
+        </div>
+      </div>
+      
+      <div class="brand-showcase-card" data-brand="Hyundai">
+        <div class="brand-showcase-header">
+          <span class="brand-showcase-flag">🇰🇷</span>
+          <div>
+            <h3 class="brand-showcase-name">Hyundai</h3>
+            <span class="brand-showcase-origin">Korean Quality</span>
+          </div>
+        </div>
+        <div>
+          <div class="brand-models-list-label">Popular Serviced Models:</div>
+          <div class="brand-models-pills">
+            <span class="brand-models-pill">Tucson</span>
+            <span class="brand-models-pill">Santa Fe</span>
+            <span class="brand-models-pill">Elantra</span>
+            <span class="brand-models-pill">Creta</span>
+            <span class="brand-models-pill">Palisade</span>
+          </div>
+        </div>
+      </div>
+      
+      <div class="brand-showcase-card" data-brand="Ford">
+        <div class="brand-showcase-header">
+          <span class="brand-showcase-flag">🇺🇸</span>
+          <div>
+            <h3 class="brand-showcase-name">Ford</h3>
+            <span class="brand-showcase-origin">American Power</span>
+          </div>
+        </div>
+        <div>
+          <div class="brand-models-list-label">Popular Serviced Models:</div>
+          <div class="brand-models-pills">
+            <span class="brand-models-pill">Ranger</span>
+            <span class="brand-models-pill">Everest</span>
+            <span class="brand-models-pill">Explorer</span>
+            <span class="brand-models-pill">F-150</span>
+            <span class="brand-models-pill">Mustang</span>
+          </div>
+        </div>
+      </div>
+      
+      <div class="brand-showcase-card" data-brand="Lexus">
+        <div class="brand-showcase-header">
+          <span class="brand-showcase-flag">🇯🇵</span>
+          <div>
+            <h3 class="brand-showcase-name">Lexus</h3>
+            <span class="brand-showcase-origin">Japanese Luxury</span>
+          </div>
+        </div>
+        <div>
+          <div class="brand-models-list-label">Popular Serviced Models:</div>
+          <div class="brand-models-pills">
+            <span class="brand-models-pill">RX350</span>
+            <span class="brand-models-pill">LX570</span>
+            <span class="brand-models-pill">NX200t</span>
+            <span class="brand-models-pill">IS250</span>
+            <span class="brand-models-pill">GX460</span>
+          </div>
+        </div>
+      </div>
+      
+      <div class="brand-showcase-card" data-brand="Land Rover">
+        <div class="brand-showcase-header">
+          <span class="brand-showcase-flag">🇬🇧</span>
+          <div>
+            <h3 class="brand-showcase-name">Land Rover</h3>
+            <span class="brand-showcase-origin">British Offroad</span>
+          </div>
+        </div>
+        <div>
+          <div class="brand-models-list-label">Popular Serviced Models:</div>
+          <div class="brand-models-pills">
+            <span class="brand-models-pill">Range Rover</span>
+            <span class="brand-models-pill">Defender</span>
+            <span class="brand-models-pill">Discovery</span>
+            <span class="brand-models-pill">Evoque</span>
+            <span class="brand-models-pill">Velar</span>
+          </div>
+        </div>
+      </div>
+      
+      <div class="brand-showcase-card" data-brand="Porsche">
+        <div class="brand-showcase-header">
+          <span class="brand-showcase-flag">🇩🇪</span>
+          <div>
+            <h3 class="brand-showcase-name">Porsche</h3>
+            <span class="brand-showcase-origin">German Prestige</span>
+          </div>
+        </div>
+        <div>
+          <div class="brand-models-list-label">Popular Serviced Models:</div>
+          <div class="brand-models-pills">
+            <span class="brand-models-pill">Cayenne</span>
+            <span class="brand-models-pill">Macan</span>
+            <span class="brand-models-pill">Panamera</span>
+            <span class="brand-models-pill">911 Carrera</span>
+            <span class="brand-models-pill">Taycan</span>
+          </div>
+        </div>
+      </div>
+      
+      <div class="brand-showcase-card" data-brand="Jeep">
+        <div class="brand-showcase-header">
+          <span class="brand-showcase-flag">🇺🇸</span>
+          <div>
+            <h3 class="brand-showcase-name">Jeep</h3>
+            <span class="brand-showcase-origin">American Trail</span>
+          </div>
+        </div>
+        <div>
+          <div class="brand-models-list-label">Popular Serviced Models:</div>
+          <div class="brand-models-pills">
+            <span class="brand-models-pill">Grand Cherokee</span>
+            <span class="brand-models-pill">Wrangler</span>
+            <span class="brand-models-pill">Cherokee</span>
+            <span class="brand-models-pill">Compass</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Quick search input for popular models -->
+    <div class="model-search-wrap animate" style="margin-top: 2.5rem;">
+      <div class="model-search-box">
+        <span>🔍</span>
+        <input type="text" id="modelSearchInput" placeholder="Search specific model directly (e.g. Prado, Forester, Q7, G-Wagon)..." />
+      </div>
+      <div id="searchSuggestions" class="search-suggestions" style="display: none;"></div>
+    </div>
+  </div>
+</section>
 
 <!-- ===== SERVICES ===== -->
 <section class="section" id="services">
@@ -183,23 +465,19 @@
   <div class="container">
     <div class="why-grid">
       <div class="why-content">
-        <span class="section-tag">Why Choose MJSD</span>
-        <h2>Driven by Quality,<br/>Powered by Trust</h2>
-        <p>We combine cutting-edge technology with decades of hands-on experience to deliver auto care you can rely on. Every vehicle we touch leaves our shop better than it arrived.</p>
+        <span class="section-tag">Putting Customers First</span>
+        <h2>Honest Auto Service,<br/>Every Repair, Every Time</h2>
+        <p>When you bring your car or truck to MJSD Mechanics, you can count on honest, reliable, high-quality auto service. We are committed to providing service with integrity, which is why we always stand by our work.</p>
         <div class="why-features">
-          <div class="why-item"><span class="check">✓</span><div><strong>Certified Technicians</strong><p>All our mechanics are professionally trained and certified.</p></div></div>
-          <div class="why-item"><span class="check">✓</span><div><strong>Transparent Pricing</strong><p>No hidden fees. You get a full quote before we start any work.</p></div></div>
-          <div class="why-item"><span class="check">✓</span><div><strong>Genuine Parts</strong><p>We use only OEM-quality parts for all repairs and replacements.</p></div></div>
-          <div class="why-item"><span class="check">✓</span><div><strong>Quick Turnaround</strong><p>Most services completed same-day so you're back on the road fast.</p></div></div>
+          <div class="why-item"><span class="check">✓</span><div><strong>Honest & Direct Pricing</strong><p>No hidden fees or surprises—just transparent, upfront recommendations and competitive estimates.</p></div></div>
+          <div class="why-item"><span class="check">✓</span><div><strong>ASE-Certified Technicians</strong><p>Our expert technicians service all makes and models of foreign and domestic vehicles.</p></div></div>
+          <div class="why-item"><span class="check">✓</span><div><strong>Expertise and Skill</strong><p>From routine oil changes to engine swaps and diagnostics, we handle it all with precision.</p></div></div>
+          <div class="why-item"><span class="check">✓</span><div><strong>Quality Parts & Equipment</strong><p>We use premium OEM parts and state-of-the-art diagnostic machinery for every vehicle.</p></div></div>
         </div>
         <a href="#booking" class="btn-primary">Schedule Your Visit</a>
       </div>
       <div class="why-image">
         <img src="team_photo.png" alt="MJSD Mechanics professional team" />
-        <div class="why-badge">
-          <span class="badge-num">98%</span>
-          <span class="badge-text">Satisfaction Rate</span>
-        </div>
       </div>
     </div>
   </div>
@@ -452,6 +730,20 @@
           <a href="tel:+255694666888">📞 0694 666 888</a>
           <a href="tel:+255694555333">📱 0694 555 333</a>
         </div>
+        <div class="social-links">
+          <a href="https://instagram.com/mjsd_mechanics" target="_blank" aria-label="Instagram">
+            <svg class="social-icon" viewBox="0 0 24 24"><path fill="currentColor" d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zM12 0C8.741 0 8.333.014 7.053.072 2.695.272.273 2.69.073 7.051.014 8.333 0 8.741 0 12c0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98 1.281.058 1.689.072 4.948.072 3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98C15.668.014 15.259 0 12 0zm0 5.838a6.162 6.162 0 1 0 0 12.324 6.162 6.162 0 0 0 0-12.324zM12 16a4 4 0 1 1 0-8 4 4 0 0 1 0 8zm6.406-11.845a1.44 1.44 0 1 0 0 2.881 1.44 1.44 0 0 0 0-2.881z"/></svg>
+          </a>
+          <a href="https://tiktok.com/@mjsd_mechanics" target="_blank" aria-label="TikTok">
+            <svg class="social-icon" viewBox="0 0 24 24"><path fill="currentColor" d="M12.525.02c1.31-.02 2.61-.01 3.91-.02.08 1.53.63 3.09 1.75 4.17 1.12 1.11 2.7 1.62 4.24 1.79v4.03c-1.44-.17-2.86-.74-3.99-1.72-.08-.07-.17-.17-.25-.25-.02 3.53-.01 7.06-.02 10.59-.07 2.05-.73 4.14-2.22 5.58-1.71 1.72-4.28 2.5-6.67 2.23-2.58-.22-5.06-1.85-6.07-4.3-1.28-3.03-.43-6.85 2.05-8.98 1.62-1.43 3.86-2.07 5.99-1.71v4.18c-1.32-.34-2.79.03-3.69 1.03-1.04 1.11-1.12 2.92-.19 4.13.9 1.23 2.65 1.73 4.09 1.17 1.11-.41 1.83-1.52 1.86-2.7.04-3.86.02-7.72.03-11.58-.88-.01-1.76.01-2.65-.01V.02z"/></svg>
+          </a>
+          <a href="https://youtube.com/@mjsd_mechanics" target="_blank" aria-label="YouTube">
+            <svg class="social-icon" viewBox="0 0 24 24"><path fill="currentColor" d="M23.498 6.163a3.003 3.003 0 0 0-2.11-2.11C19.518 3.545 12 3.545 12 3.545s-7.518 0-9.388.508a3.003 3.003 0 0 0-2.11 2.11C0 8.033 0 12 0 12s0 3.967.502 5.837a3.003 3.003 0 0 0 2.11 2.11c1.87.508 9.388.508 9.388.508s7.518 0 9.388-.508a3.003 3.003 0 0 0 2.11-2.11C24 15.967 24 12 24 12s0-3.967-.502-5.837zM9.545 15.568V8.432L15.818 12l-6.273 3.568z"/></svg>
+          </a>
+          <a href="https://facebook.com/mjsd_mechanics" target="_blank" aria-label="Facebook">
+            <svg class="social-icon" viewBox="0 0 24 24"><path fill="currentColor" d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/></svg>
+          </a>
+        </div>
       </div>
       <div class="footer-links">
         <h4>Quick Links</h4>
@@ -487,13 +779,23 @@
   </div>
 </footer>
 
-<!-- ===== FLOATING CALL BUTTON ===== -->
-<a href="tel:+255694666888" class="float-call" id="floatCall" title="Call MJSD Mechanics">
+<!-- ===== FLOATING BUTTONS ===== -->
+<!-- Floating WhatsApp Chat -->
+<a href="https://wa.me/255694666888?text=Hello%20MJSD%20Mechanics!%20I'd%20like%20to%20inquire%20about%20booking%20a%20service%20for%20my%20vehicle." 
+   class="float-whatsapp show" id="floatWhatsapp" target="_blank" title="Chat with us on WhatsApp">
+  <span class="whatsapp-badge">Chat with us</span>
+  <svg class="whatsapp-icon" viewBox="0 0 24 24">
+    <path fill="currentColor" d="M12.012 2c-5.506 0-9.989 4.478-9.99 9.984a9.96 9.96 0 0 0 1.333 4.982L2 22l5.233-1.372a9.95 9.95 0 0 0 4.78 1.22h.005c5.502 0 9.985-4.479 9.986-9.985C22 6.478 17.518 2 12.012 2zm5.82 14.185c-.242.678-1.4 1.332-1.92 1.428c-.464.085-.92.173-2.92-.619c-2.459-.974-4.04-3.473-4.161-3.636c-.122-.163-1.026-1.365-1.026-2.603c0-1.238.65-1.848.88-2.091c.23-.243.498-.303.666-.303h.478c.153 0 .363-.058.566.444c.203.504.697 1.7.757 1.821c.061.121.101.263.02.424c-.08.162-.122.263-.243.404c-.12.14-.256.315-.365.424c-.12.12-.248.252-.107.494c.141.242.628 1.033 1.348 1.674c.928.826 1.708 1.08 1.95 1.201c.243.12.384.101.526-.061c.14-.162.607-.707.768-.949c.162-.242.324-.202.546-.121c.223.08 1.416.667 1.66.788c.242.12.404.182.464.283c.06.101.06.586-.182 1.263z"/>
+  </svg>
+</a>
+
+<!-- Floating Call Button -->
+<a href="tel:+255694666888" class="float-call show" id="floatCall" title="Call MJSD Mechanics">
   <span>📞</span>
 </a>
 
-<!-- ===== BACK TO TOP ===== -->
-<button class="back-to-top" id="backToTop" title="Back to top">↑</button>
+<!-- Back To Top Button -->
+<button class="back-to-top show" id="backToTop" title="Back to top">↑</button>
 
 <script src="script.js"></script>
 </body>

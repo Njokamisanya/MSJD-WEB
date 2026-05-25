@@ -108,7 +108,7 @@ document.addEventListener("DOMContentLoaded", () => {
 // ===== STAFF PORTAL AUTHENTICATION =====
 // Password is stored as a SHA-256 hash — never in plaintext.
 // To change the password: run hashPassword('yourNewPassword') in the console and update PORTAL_HASH.
-const PORTAL_HASH = "a665a45920422f9d417e4867efdc4fb8a04a1f3fff1fa07e998e86f7f7a27ae3"; // SHA-256 of 'mjsd2026'
+const PORTAL_HASH = "308768f1ab6a3342d0308acb2c87ad554ab6ca3bdea143952eee3a7abf3fef7b"; // SHA-256 of 'mjsd2026'
 
 const MAX_LOGIN_ATTEMPTS = 5;
 const LOCKOUT_DURATION_MS = 30 * 60 * 1000; // 30 minutes

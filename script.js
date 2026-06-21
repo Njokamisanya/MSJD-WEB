@@ -11,6 +11,17 @@ function sanitize(str) {
     .replace(/\//g, '&#x2F;');
 }
 
+// Shop WhatsApp number used to actually DELIVER form submissions.
+// (localStorage only persists data in the visitor's own browser — it never
+// reaches the business. Opening a pre-filled WhatsApp chat does.)
+const SHOP_WHATSAPP = '255694666888';
+function sendToWhatsApp(lines) {
+  const text = encodeURIComponent(lines.filter(Boolean).join('\n'));
+  // Opened synchronously inside the submit handler so the user gesture is kept
+  // and the browser doesn't block it as a pop-up.
+  window.open(`https://wa.me/${SHOP_WHATSAPP}?text=${text}`, '_blank', 'noopener');
+}
+
 // Rate limiter — prevents form spam. Returns true if allowed, false if throttled.
 const _rateLimits = {};
 function rateLimitCheck(key, limitMs = 60000) {
@@ -95,6 +106,8 @@ function renderGallery(filter = 'all') {
 
       // Use safe DOM methods — never inject unsanitized innerHTML
       const img = document.createElement('img');
+      img.loading = 'lazy';
+      img.decoding = 'async';
       img.src = sanitize(item.img);
       img.alt = sanitize(item.alt);
       img.onerror = () => { img.src = `https://placehold.co/600x450/16213e/ffffff?text=${encodeURIComponent(sanitize(item.title))}`; };
@@ -172,10 +185,22 @@ if (bookingForm) {
       return;
     }
 
-    // Save to localStorage
+    // Save to localStorage (so the Staff Portal dashboard can list it too)
     const existingBookings = JSON.parse(localStorage.getItem('mjsd_bookings')) || [];
     existingBookings.unshift(booking);
     localStorage.setItem('mjsd_bookings', JSON.stringify(existingBookings));
+
+    // Deliver the booking to the shop via WhatsApp
+    sendToWhatsApp([
+      `🔧 *New Booking Request* (${booking.id})`,
+      `Name: ${booking.fname} ${booking.lname}`,
+      `Phone: ${booking.phone}`,
+      `Email: ${booking.email}`,
+      `Vehicle: ${booking.vehicle}`,
+      `Service: ${booking.service}`,
+      `Date: ${booking.date} at ${booking.time}`,
+      `Notes: ${booking.notes}`
+    ]);
 
     setTimeout(() => {
       bookingForm.style.display = 'none';
@@ -227,10 +252,19 @@ if (inquiryForm) {
       createdAt: new Date().toLocaleString()
     };
 
-    // Save to localStorage
+    // Save to localStorage (so the Staff Portal dashboard can list it too)
     const existingInquiries = JSON.parse(localStorage.getItem('mjsd_inquiries')) || [];
     existingInquiries.unshift(inquiry);
     localStorage.setItem('mjsd_inquiries', JSON.stringify(existingInquiries));
+
+    // Deliver the inquiry to the shop via WhatsApp
+    sendToWhatsApp([
+      `✉️ *New Inquiry* (${inquiry.id})`,
+      `Name: ${inquiry.name}`,
+      `Phone: ${inquiry.phone}`,
+      `Subject: ${inquiry.subject}`,
+      `Message: ${inquiry.message}`
+    ]);
 
     setTimeout(() => {
       inquiryForm.style.display = 'none';
@@ -239,33 +273,138 @@ if (inquiryForm) {
   });
 }
 
-// ===== SCROLL ANIMATIONS =====
-const observer = new IntersectionObserver((entries) => {
-  entries.forEach(entry => {
-    if (entry.isIntersecting) {
-      entry.target.classList.add('visible');
-    }
-  });
-}, { threshold: 0.1 });
+// ===== SCROLL ENGINE (GSAP only — native scrolling) =====
+// Lenis smooth scroll is intentionally disabled: it was causing jumpy/stuck
+// scrolling. The browser's native scrolling is used instead, and GSAP's
+// ScrollTrigger reads native scroll directly (its default), so all the
+// scroll-driven animations keep working.
+if (window.gsap && window.ScrollTrigger) {
+  gsap.registerPlugin(ScrollTrigger);
+}
 
+// 3. Register Scroll Animations with GSAP
 function registerAnimations() {
-  document.querySelectorAll('.service-card, .review-card, .gallery-item, .why-item, .info-card, .stat, .brands-section, .brands-ticker-wrap, .brands-grid-wrap, .model-search-wrap, .animate').forEach(el => {
-    el.classList.add('animate');
-    observer.observe(el);
-  });
+  const animateElements = document.querySelectorAll('.service-card, .review-card, .gallery-item, .why-item, .info-card, .stat, .brands-section, .brands-ticker-wrap, .brands-grid-wrap, .model-search-wrap, .animate');
+  
+  if (window.gsap && window.ScrollTrigger) {
+    animateElements.forEach(el => {
+      // Add hardware acceleration hint
+      el.classList.add('animate');
+      
+      gsap.from(el, {
+        scrollTrigger: {
+          trigger: el,
+          start: "top 85%", // when top of element hits 85% down viewport
+          toggleActions: "play none none reverse" // play when entering, reverse when leaving
+        },
+        opacity: 0,
+        y: 40,
+        duration: 0.8,
+        ease: "power2.out"
+      });
+    });
+  } else {
+    // Fallback if GSAP fails to load
+    animateElements.forEach(el => el.classList.add('animate', 'visible'));
+  }
 }
 registerAnimations();
 
+// ===== PHASE 4: IMAGE SEQUENCE SCRUBBING =====
+function initSequenceScrubbing() {
+  const canvas = document.getElementById("hero-canvas");
+  if (!canvas) return;
+  const ctx = canvas.getContext("2d");
+  
+  // Set canvas resolution
+  canvas.width = 1280;
+  canvas.height = 720;
+
+  const frameCount = 120;
+  const images = [];
+  
+  // Preload all frames
+  for (let i = 0; i < frameCount; i++) {
+    const img = new Image();
+    img.src = `./frames/frame-${String(i).padStart(4, "0")}.svg`;
+    images.push(img);
+  }
+
+  function renderFrame(index) {
+    if (!images[index]) return;
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    if (images[index].complete && images[index].naturalHeight !== 0) {
+      ctx.drawImage(images[index], 0, 0, canvas.width, canvas.height);
+    } else {
+      images[index].onload = () => {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        ctx.drawImage(images[index], 0, 0, canvas.width, canvas.height);
+      };
+    }
+  }
+
+  // Initial render when first image loads
+  images[0].onload = () => renderFrame(0);
+  
+  // If already loaded
+  if (images[0].complete) {
+    renderFrame(0);
+  }
+
+  // GSAP scrubs the frame index as the section passes through the viewport.
+  // No pin: pinning hijacks the scroll and makes the page feel stuck. This
+  // scrubs naturally while you keep scrolling, so the page never sticks.
+  if (window.gsap && window.ScrollTrigger) {
+    gsap.to({ frame: 0 }, {
+      frame: frameCount - 1,
+      snap: "frame",
+      ease: "none",
+      scrollTrigger: {
+        trigger: ".sequence-section",
+        start: "top bottom", // begin when the section first enters from below
+        end: "bottom top",   // finish when it has fully passed above
+        scrub: 0.5
+      },
+      onUpdate: function() {
+        renderFrame(Math.round(this.targets()[0].frame));
+      }
+    });
+  }
+}
+// Lazy-init: only preload the 120 sequence frames once the section is near
+// the viewport, so they don't compete with the hero/above-the-fold content
+// on first load (important for mobile-data visitors).
+(function lazyInitSequence() {
+  const sec = document.querySelector('.sequence-section');
+  if (!sec) return;
+  if (!('IntersectionObserver' in window)) { initSequenceScrubbing(); return; }
+  const io = new IntersectionObserver((entries, obs) => {
+    if (entries.some(e => e.isIntersecting)) {
+      initSequenceScrubbing();
+      obs.disconnect();
+    }
+  }, { rootMargin: '600px 0px' });
+  io.observe(sec);
+})();
+
+// ===== DYNAMIC COPYRIGHT YEAR =====
+(function setCopyrightYear() {
+  const el = document.getElementById('copyYear');
+  if (el) el.textContent = new Date().getFullYear();
+})();
+
 // ===== ACTIVE NAV LINK ON SCROLL =====
-const sections = document.querySelectorAll('section[id], div[id]');
+// Toggle an `.active` class (styled in CSS) rather than writing inline styles,
+// so there is a single source of truth and no stale inline colors left behind.
+const sections = document.querySelectorAll('main section[id], body > section[id]');
+const topLevelLinks = document.querySelectorAll('.nav-links > a, .nav-dropdown > .dropdown-trigger');
 window.addEventListener('scroll', () => {
   let current = '';
   sections.forEach(section => {
     if (window.scrollY >= section.offsetTop - 150) current = section.id;
   });
-  document.querySelectorAll('.nav-links a').forEach(link => {
-    const isActive = link.getAttribute('href') === `#${current}`;
-    link.style.color = isActive ? 'var(--red)' : '';
+  topLevelLinks.forEach(link => {
+    link.classList.toggle('active', link.getAttribute('href') === `#${current}`);
   });
 });
 
@@ -321,23 +460,55 @@ const popularModels = {
 
 // Set up showcase card click handlers to automatically populate the booking form
 document.querySelectorAll('.brand-showcase-card').forEach(card => {
-  card.addEventListener('click', () => {
+  // Make the <div> a real, keyboard-operable control
+  card.setAttribute('role', 'button');
+  card.setAttribute('tabindex', '0');
+  card.setAttribute('aria-label', `Book a service for ${card.dataset.brand}`);
+
+  const selectBrand = () => {
     // Clear active status and select current
     document.querySelectorAll('.brand-showcase-card').forEach(c => c.classList.remove('active'));
     card.classList.add('active');
-    
+
     const brand = card.dataset.brand;
     const vehicleInput = document.getElementById('vehicle');
     if (vehicleInput) {
       vehicleInput.value = brand;
       vehicleInput.focus();
     }
-    
+
     // Smooth scroll to booking
     const bookingSection = document.getElementById('booking');
     if (bookingSection) {
       bookingSection.scrollIntoView({ behavior: 'smooth' });
     }
+  };
+
+  card.addEventListener('click', selectBrand);
+  card.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter' || e.key === ' ') {
+      e.preventDefault();
+      selectBrand();
+    }
+  });
+});
+
+// ===== SERVICES DROPDOWN → PRESELECT SERVICE + JUMP TO BOOKING =====
+document.querySelectorAll('.dropdown-menu a[data-service]').forEach(link => {
+  link.addEventListener('click', () => {
+    const serviceSelect = document.getElementById('service');
+    if (serviceSelect) {
+      const wanted = link.dataset.service;
+      // Match against an existing <option> if present
+      [...serviceSelect.options].forEach(opt => {
+        if (opt.value === wanted || opt.textContent.trim() === wanted) {
+          serviceSelect.value = opt.value || opt.textContent.trim();
+        }
+      });
+    }
+    // Close the mobile menu/dropdown after choosing
+    if (servicesDropdown) servicesDropdown.classList.remove('active');
+    navLinks.classList.remove('open');
   });
 });
 
@@ -375,7 +546,9 @@ if (modelSearchInput && searchSuggestions) {
       pill.className = 'suggestion-pill';
       pill.textContent = label; // textContent is always XSS-safe
       pill.dataset.vehicle = vehicleValue;
-      pill.addEventListener('click', () => {
+      pill.setAttribute('role', 'button');
+      pill.setAttribute('tabindex', '0');
+      const choosePill = () => {
         const vehicleInput = document.getElementById('vehicle');
         if (vehicleInput) { vehicleInput.value = vehicleValue; vehicleInput.focus(); }
         searchSuggestions.style.display = 'none';
@@ -383,6 +556,10 @@ if (modelSearchInput && searchSuggestions) {
         modelSearchInput.value = '';
         const bookingSection = document.getElementById('booking');
         if (bookingSection) bookingSection.scrollIntoView({ behavior: 'smooth' });
+      };
+      pill.addEventListener('click', choosePill);
+      pill.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); choosePill(); }
       });
       list.appendChild(pill);
     };
@@ -410,3 +587,102 @@ if (modelSearchInput && searchSuggestions) {
     }
   });
 }
+
+// ===== CINEMATIC LAYER (added) =====
+// Injects film grain, vignette, and a scroll-progress scrubber, plus
+// hero parallax and magnetic buttons. Everything degrades gracefully
+// and respects the user's reduced-motion preference.
+(function cinematicLayer() {
+  const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+  // --- Inject overlay elements once ---
+  const makeOverlay = (cls) => {
+    const el = document.createElement('div');
+    el.className = cls;
+    el.setAttribute('aria-hidden', 'true');
+    document.body.appendChild(el);
+    return el;
+  };
+  const progress = makeOverlay('scroll-progress');
+  makeOverlay('cine-vignette');
+  if (!reduceMotion) makeOverlay('cine-grain');
+
+  // --- Scroll progress bar ---
+  // Cache the scroll range and recompute only on resize, so the scroll
+  // handler never forces a synchronous layout (which causes jank).
+  const doc = document.documentElement;
+  let scrollMax = 1;
+  function measure() { scrollMax = Math.max(1, doc.scrollHeight - doc.clientHeight); }
+  let ticking = false;
+  function onScroll() {
+    if (ticking) return;
+    ticking = true;
+    requestAnimationFrame(() => {
+      const y = window.scrollY || doc.scrollTop;
+      progress.style.width = Math.min(100, (y / scrollMax) * 100) + '%';
+      ticking = false;
+    });
+  }
+  measure();
+  window.addEventListener('resize', measure, { passive: true });
+  window.addEventListener('load', measure);
+  window.addEventListener('scroll', onScroll, { passive: true });
+  onScroll();
+
+  // --- Magnetic buttons: subtly lean toward the cursor ---
+  if (!reduceMotion && window.matchMedia('(pointer:fine)').matches) {
+    document.querySelectorAll('.btn-primary, .btn-outline').forEach((btn) => {
+      btn.addEventListener('mousemove', (e) => {
+        const r = btn.getBoundingClientRect();
+        const mx = e.clientX - (r.left + r.width / 2);
+        const my = e.clientY - (r.top + r.height / 2);
+        btn.style.transform = `translate(${mx * 0.18}px, ${my * 0.28}px)`;
+      });
+      btn.addEventListener('mouseleave', () => { btn.style.transform = ''; });
+    });
+  }
+
+  // --- Cinematic entrance for major section headings via GSAP ---
+  if (window.gsap && window.ScrollTrigger && !reduceMotion) {
+    document.querySelectorAll('.section-header, .sequence-content').forEach((el) => {
+      gsap.from(el, {
+        scrollTrigger: { trigger: el, start: 'top 80%', toggleActions: 'play none none reverse' },
+        opacity: 0, y: 60, scale: 0.98, duration: 1, ease: 'power3.out'
+      });
+    });
+  }
+})();
+
+// ===== SITE IMAGE OVERRIDES (added) =====
+// Lets staff replace the fixed site imagery (hero, service cards, team photo)
+// with real photos uploaded via the Staff Portal. Overrides are stored as
+// data-URLs in localStorage['mjsd_site_images'] keyed by slot.
+function applySiteImageOverrides() {
+  let map = {};
+  try { map = JSON.parse(localStorage.getItem('mjsd_site_images')) || {}; }
+  catch (e) { map = {}; }
+
+  // Hero background — painted by .hero::before via the --hero-img variable
+  const hero = document.querySelector('.hero');
+  if (hero && map.hero) {
+    hero.style.setProperty('--hero-img', `url("${map.hero}")`);
+  }
+
+  // Six service-card images, in DOM order
+  const serviceKeys = ['svc_engine', 'svc_brakes', 'svc_oil', 'svc_susp', 'svc_maint', 'svc_elec'];
+  const serviceImgs = document.querySelectorAll('.services-grid .service-card .service-img');
+  serviceImgs.forEach((el, i) => {
+    const data = map[serviceKeys[i]];
+    if (data) {
+      // CSS sets these backgrounds with !important, so override at the same weight
+      el.style.setProperty('background-image', `url("${data}")`, 'important');
+      el.style.setProperty('background-size', 'cover', 'important');
+      el.style.setProperty('background-position', 'center', 'important');
+    }
+  });
+
+  // Team photo in the "Why Us" section
+  const teamImg = document.querySelector('.why-image img');
+  if (teamImg && map.team) teamImg.src = map.team;
+}
+applySiteImageOverrides();

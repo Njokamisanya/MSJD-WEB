@@ -29,17 +29,68 @@
         <span class="logo-sub" style="display: block; font-size: 0.85rem; color: var(--red-light); font-weight: 600; text-transform: uppercase;">Staff Portal</span>
       </div>
     </div>
-    <h3>Staff Authentication</h3>
-    <p style="color: var(--gray); font-size: 0.9rem; margin-bottom: 1.5rem; line-height: 1.4;">Please enter the secure administrative password to access the workshop dashboard.</p>
-    <form id="adminLoginForm">
-      <div class="form-group" style="text-align: left;">
-        <label for="adminPassword" style="font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.5px; color: var(--gray);">Staff Password</label>
-        <input type="password" id="adminPassword" placeholder="••••••••" required style="width: 100%; box-sizing: border-box; padding: 0.85rem; border-radius: var(--border-radius); border: 1px solid rgba(255,255,255,0.06); background: rgba(0,0,0,0.3); color: #fff; margin-top: 0.5rem; outline: none; transition: var(--transition);" />
+    <!-- VIEW: SIGN IN -->
+    <div class="login-view" id="view-login">
+      <h3>Staff Sign In</h3>
+      <p class="login-sub">Sign in with your staff email and password.</p>
+      <form id="adminLoginForm" class="login-form">
+        <label for="loginEmail">Email Address</label>
+        <input type="email" id="loginEmail" placeholder="name@mjsdmechanics.com" autocomplete="username" required />
+        <label for="loginPassword">Password</label>
+        <input type="password" id="loginPassword" placeholder="••••••••" autocomplete="current-password" required />
+        <button type="submit" class="btn-primary login-btn">Sign In ✓</button>
+        <p id="loginError" class="login-error" style="display:none"></p>
+      </form>
+      <div class="login-links">
+        <a href="#" id="forgotLink">Forgot password?</a>
       </div>
-      <button type="submit" class="btn-primary" style="width: 100%; border: none; padding: 0.85rem; margin-top: 1.5rem; cursor: pointer; font-weight: 600; border-radius: var(--border-radius);">Unlock Dashboard ✓</button>
-      <p id="loginError" style="color: var(--status-cancelled); font-size: 0.85rem; margin-top: 0.8rem; display: none; font-weight: 500;"></p>
-    </form>
-    <a href="index.html" style="color: var(--gray); font-size: 0.85rem; text-decoration: underline; display: block; margin-top: 1.8rem; transition: var(--transition);" onmouseover="this.style.color='#fff'" onmouseout="this.style.color='var(--gray)'">Return to Live Site</a>
+    </div>
+
+    <!-- VIEW: FORGOT PASSWORD -->
+    <div class="login-view hidden" id="view-forgot">
+      <h3>Reset Password</h3>
+      <div id="forgotStep1">
+        <p class="login-sub">Enter your email to retrieve your security question.</p>
+        <form id="forgotStep1Form" class="login-form">
+          <label for="forgotEmail">Email Address</label>
+          <input type="email" id="forgotEmail" placeholder="name@mjsdmechanics.com" required />
+          <button type="submit" class="btn-primary login-btn">Continue</button>
+        </form>
+      </div>
+      <div id="forgotStep2" class="hidden">
+        <form id="forgotStep2Form" class="login-form">
+          <input type="hidden" id="forgotEmailHidden" />
+          <label>Security Question</label>
+          <p id="forgotQuestionText" class="security-question"></p>
+          <label for="forgotAnswer">Your Answer</label>
+          <input type="text" id="forgotAnswer" required />
+          <label for="forgotNew">New Password</label>
+          <input type="password" id="forgotNew" placeholder="Min 6 characters" required />
+          <label for="forgotConfirm">Confirm New Password</label>
+          <input type="password" id="forgotConfirm" required />
+          <button type="submit" class="btn-primary login-btn">Update Password</button>
+        </form>
+      </div>
+      <p id="forgotError" class="login-error" style="display:none"></p>
+      <div class="login-links"><a href="#" class="backToLogin">← Back to sign in</a></div>
+    </div>
+
+    <!-- VIEW: PASSWORD EXPIRED (forced change) -->
+    <div class="login-view hidden" id="view-expired">
+      <h3>Password Expired</h3>
+      <p class="login-sub">Your password is older than 30 days. Please set a new one to continue.</p>
+      <form id="expiredForm" class="login-form">
+        <label for="expiredNew">New Password</label>
+        <input type="password" id="expiredNew" placeholder="Min 6 characters" required />
+        <label for="expiredConfirm">Confirm New Password</label>
+        <input type="password" id="expiredConfirm" required />
+        <button type="submit" class="btn-primary login-btn">Set New Password</button>
+        <p id="expiredError" class="login-error" style="display:none"></p>
+      </form>
+      <div class="login-links"><a href="#" class="backToLogin">← Back to sign in</a></div>
+    </div>
+
+    <a href="index.html" class="login-return" onmouseover="this.style.color='#fff'" onmouseout="this.style.color='var(--gray)'">Return to Live Site</a>
   </div>
 </div>
 
@@ -71,6 +122,16 @@
       <a href="#uploader" class="nav-item" data-tab="uploader">
         <span class="nav-icon">📸</span> Gallery Manager
       </a>
+      <a href="#inventory" class="nav-item" data-tab="inventory">
+        <span class="nav-icon">📦</span> Inventory
+        <span class="badge" id="inventoryLowBadge" style="display:none">0</span>
+      </a>
+      <a href="#staff" class="nav-item admin-only" data-tab="staff">
+        <span class="nav-icon">👥</span> Staff Management
+      </a>
+      <a href="#accounting" class="nav-item admin-only" data-tab="accounting">
+        <span class="nav-icon">💰</span> Accounting
+      </a>
       <div class="nav-divider"></div>
       <a href="index.html" class="nav-item return-btn">
         <span class="nav-icon">🏠</span> Back to Live Site
@@ -81,8 +142,11 @@
     </nav>
     
     <div class="sidebar-footer">
-      <div>Logged in as:</div>
-      <strong>MJSD Admin</strong>
+      <div style="font-size:.72rem;text-transform:uppercase;letter-spacing:.5px;">Logged in as</div>
+      <strong id="sidebarUserName" style="color:#fff;">MJSD Admin</strong>
+      <div style="margin-top:.15rem;"><span class="status-badge confirmed" id="sidebarUserRole" style="font-size:.65rem;">Admin</span></div>
+      <div id="sidebarPassExp" style="margin-top:.5rem;font-size:.72rem;">Password expires in 30 days</div>
+      <a href="#" id="changePwBtn" style="display:inline-block;margin-top:.5rem;font-size:.78rem;color:var(--red-light);text-decoration:underline;">🔑 Change my password</a>
     </div>
   </aside>
 
@@ -282,10 +346,182 @@
             </div>
           </div>
         </div>
+
+        <!-- ===== SITE IMAGES MANAGER ===== -->
+        <div class="overview-card" style="margin-top: 1.5rem;">
+          <div class="card-header" style="margin-bottom: 1.5rem;">
+            <h3>Site Images — Replace Placeholders With Real Photos</h3>
+            <p style="color: var(--gray); font-size: .85rem; margin-top: .2rem;">Upload real workshop photos for the hero banner, each service card, and the team photo. Changes go live on the website instantly. Leave a slot untouched to keep the current image.</p>
+          </div>
+
+          <div class="site-images-grid" id="siteImagesGrid">
+            <!-- Generated via JS -->
+          </div>
+          <!-- Shared hidden input used by whichever slot is being edited -->
+          <input type="file" id="siteImageInput" accept="image/*" style="display:none" />
+        </div>
+      </section>
+
+      <!-- ==================== INVENTORY TAB ==================== -->
+      <section class="admin-tab-content" id="tab-inventory">
+        <div class="stats-grid">
+          <div class="stat-widget">
+            <div class="widget-icon bg-blue">📦</div>
+            <div class="widget-info"><span class="widget-label">Total Items</span><h3 id="invTotalItems">0</h3></div>
+          </div>
+          <div class="stat-widget">
+            <div class="widget-icon bg-green">💵</div>
+            <div class="widget-info"><span class="widget-label">Stock Value</span><h3 id="invStockValue">TZS 0</h3></div>
+          </div>
+          <div class="stat-widget">
+            <div class="widget-icon bg-yellow">⚠️</div>
+            <div class="widget-info"><span class="widget-label">Low Stock Items</span><h3 id="invLowStock">0</h3></div>
+          </div>
+        </div>
+        <div class="filter-bar">
+          <div class="search-input-wrap">
+            <span class="search-icon">🔍</span>
+            <input type="text" id="inventorySearch" placeholder="Search part, SKU, category or supplier..." onkeyup="renderInventory()">
+          </div>
+          <button class="btn-primary btn-inline" onclick="openInventoryModal()">+ Add Item</button>
+        </div>
+        <div class="overview-card">
+          <div class="table-responsive">
+            <table class="admin-table full-table">
+              <thead>
+                <tr>
+                  <th>Item</th><th>Category</th><th>Qty</th><th>Unit Price</th><th>Stock Value</th><th>Supplier</th><th>Action</th>
+                </tr>
+              </thead>
+              <tbody id="inventoryTableBody"></tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <!-- ==================== STAFF MANAGEMENT TAB ==================== -->
+      <section class="admin-tab-content" id="tab-staff">
+        <div class="stats-grid">
+          <div class="stat-widget">
+            <div class="widget-icon bg-blue">👥</div>
+            <div class="widget-info"><span class="widget-label">Total Staff</span><h3 id="staffTotal">0</h3></div>
+          </div>
+          <div class="stat-widget">
+            <div class="widget-icon bg-red">🛡️</div>
+            <div class="widget-info"><span class="widget-label">Admins</span><h3 id="staffAdmins">0</h3></div>
+          </div>
+          <div class="stat-widget">
+            <div class="widget-icon bg-yellow">⛔</div>
+            <div class="widget-info"><span class="widget-label">Inactive Accounts</span><h3 id="staffInactive">0</h3></div>
+          </div>
+        </div>
+        <div class="filter-bar">
+          <div style="color:var(--gray);font-size:.9rem;">Manage who can access this portal and their permissions.</div>
+          <button class="btn-primary btn-inline" onclick="openStaffModal()">+ Add Staff</button>
+        </div>
+        <div class="overview-card">
+          <div class="table-responsive">
+            <table class="admin-table full-table">
+              <thead>
+                <tr><th>Name</th><th>Email</th><th>Role</th><th>Status</th><th>Password</th><th>Actions</th></tr>
+              </thead>
+              <tbody id="staffTableBody"></tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <!-- ==================== ACCOUNTING TAB ==================== -->
+      <section class="admin-tab-content" id="tab-accounting">
+        <!-- Period toolbar -->
+        <div class="acct-toolbar">
+          <div class="acct-period">
+            <label for="txPeriod">Period</label>
+            <select id="txPeriod" onchange="renderAccounting()">
+              <option value="month">This Month</option>
+              <option value="lastmonth">Last Month</option>
+              <option value="year">This Year</option>
+              <option value="all">All Time</option>
+              <option value="custom">Custom Range</option>
+            </select>
+            <span id="txCustomRange" class="acct-custom hidden">
+              <input type="date" id="txFrom" onchange="renderAccounting()" aria-label="From date">
+              <span style="color:var(--gray)">→</span>
+              <input type="date" id="txTo" onchange="renderAccounting()" aria-label="To date">
+            </span>
+          </div>
+          <div class="acct-actions">
+            <button class="btn-ghost btn-inline" onclick="exportTransactionsCSV()">⬇ Export CSV</button>
+            <button class="btn-primary btn-inline" onclick="openTransactionModal()">+ Record Transaction</button>
+          </div>
+        </div>
+
+        <!-- Summary widgets -->
+        <div class="stats-grid acct-stats">
+          <div class="stat-widget">
+            <div class="widget-icon bg-green">📈</div>
+            <div class="widget-info"><span class="widget-label">Income</span><h3 id="accIncome">TZS 0</h3></div>
+          </div>
+          <div class="stat-widget">
+            <div class="widget-icon bg-red">📉</div>
+            <div class="widget-info"><span class="widget-label">Expenses</span><h3 id="accExpense">TZS 0</h3></div>
+          </div>
+          <div class="stat-widget">
+            <div class="widget-icon bg-blue">⚖️</div>
+            <div class="widget-info"><span class="widget-label">Net Profit</span><h3 id="accNet">TZS 0</h3></div>
+          </div>
+          <div class="stat-widget">
+            <div class="widget-icon bg-yellow">⏳</div>
+            <div class="widget-info"><span class="widget-label">Outstanding</span><h3 id="accOutstanding">TZS 0</h3></div>
+          </div>
+        </div>
+
+        <!-- Expense breakdown + P&L -->
+        <div class="acct-grid">
+          <div class="overview-card">
+            <div class="card-header">
+              <h3>Expenses by Category</h3>
+              <span id="acctPeriodLabel" style="color:var(--gray);font-size:.8rem"></span>
+            </div>
+            <div id="expenseBreakdown"></div>
+          </div>
+          <div class="overview-card">
+            <div class="card-header"><h3>Profit &amp; Loss</h3></div>
+            <div id="plSummary"></div>
+          </div>
+        </div>
+
+        <!-- Ledger -->
+        <div class="filter-bar">
+          <div class="search-input-wrap">
+            <span class="search-icon">🔍</span>
+            <input type="text" id="txSearch" placeholder="Search description, payee, reference or category..." onkeyup="renderAccounting()">
+          </div>
+          <div class="filter-dropdowns">
+            <select id="txTypeFilter" onchange="renderAccounting()">
+              <option value="all">All Types</option>
+              <option value="income">Income</option>
+              <option value="expense">Expense</option>
+            </select>
+          </div>
+        </div>
+        <div class="overview-card">
+          <div class="table-responsive">
+            <table class="admin-table full-table">
+              <thead>
+                <tr><th>Date</th><th>Type</th><th>Category</th><th>Details</th><th>Method</th><th>Amount</th><th>Status</th><th>Action</th></tr>
+              </thead>
+              <tbody id="txTableBody"></tbody>
+            </table>
+          </div>
+        </div>
       </section>
     </div>
   </main>
 </div>
+
+<!-- Modal root for inventory / staff / accounting / password dialogs -->
+<div id="adminModalRoot"></div>
 
 <!-- Scripts -->
 <script src="admin.js"></script>

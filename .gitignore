@@ -1,0 +1,6 @@
+.DS_Store
+.claude/
+node_modules/
+generate_frames.js
+generate_images.js
+SKILLS.md

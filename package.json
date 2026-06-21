@@ -1,0 +1,11 @@
+{
+  "name": "mjsd-mechanics",
+  "version": "1.0.0",
+  "description": "MJSD Mechanics Cinematic Website",
+  "scripts": {
+    "dev": "npx serve ."
+  },
+  "dependencies": {
+    "serve": "^14.2.4"
+  }
+}

@@ -374,12 +374,12 @@ function showLoginError(errorMsg, input, text) {
 function showInlineError(el, text) { if (el) { el.textContent = text; el.style.display = 'block'; } }
 
 // ===== REUSABLE ADMIN MODAL =====
-function openAdminModal(title, bodyHTML) {
+function openAdminModal(title, bodyHTML, wide = false) {
   const root = document.getElementById('adminModalRoot');
   if (!root) return;
   root.innerHTML = `
     <div class="admin-modal-overlay" id="adminModalOverlay">
-      <div class="admin-modal-card">
+      <div class="admin-modal-card${wide ? ' wide' : ''}">
         <button type="button" class="admin-modal-close" id="adminModalClose" aria-label="Close">×</button>
         <h3 class="admin-modal-title">${esc(title)}</h3>
         ${bodyHTML}
@@ -474,6 +474,7 @@ function switchTab(tabId) {
     bookings:   ["Appointments", "Review, schedule and coordinate customer service bookings"],
     messages:   ["Customer Messages", "Read and respond to inquiries sent from the website contact form"],
     uploader:   ["Gallery Portfolio Manager", "Publish vehicle photos directly to the main customer website"],
+    invoices:   ["Invoices", "Create, print and track customer invoices for workshop jobs"],
     inventory:  ["Inventory Management", "Track parts, fluids and consumables stock for the workshop"],
     staff:      ["Staff Management", "Manage staff accounts, roles and passwords"],
     accounting: ["Accounting", "Record income & expenses and monitor workshop finances"]
@@ -495,6 +496,7 @@ function loadAllData() {
   // Load extended modules
   loadInventory();
   loadTransactions();
+  loadInvoices();
 
   // Redraw all components
   updateCounters();
@@ -505,6 +507,7 @@ function loadAllData() {
   renderAdminGallery();
   renderInventory();
   renderAccounting();
+  renderInvoices();
   renderStaff();
 }
 
@@ -1046,6 +1049,69 @@ function loadInventory() {
 }
 function saveInventory() { localStorage.setItem(INVENTORY_KEY, JSON.stringify(inventory)); }
 
+function inventoryQrPayload(it) {
+  return [
+    'MJSD INVENTORY',
+    `Item: ${it.name || ''}`,
+    `SKU: ${it.sku || it.id || ''}`,
+    `Category: ${it.category || ''}`,
+    `Qty: ${Number(it.quantity) || 0}`,
+    `Reorder: ${Number(it.reorderLevel) || 0}`,
+    `Supplier: ${it.supplier || ''}`
+  ].join('\n');
+}
+
+function inventoryQrUrl(it, size = 260) {
+  return `https://api.qrserver.com/v1/create-qr-code/?size=${size}x${size}&margin=10&data=${encodeURIComponent(inventoryQrPayload(it))}`;
+}
+
+function csvCell(value) {
+  const s = String(value == null ? '' : value);
+  return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
+}
+
+function parseCSV(text) {
+  const rows = [];
+  let row = [], cell = '', quoted = false;
+  for (let i = 0; i < text.length; i++) {
+    const ch = text[i], next = text[i + 1];
+    if (quoted) {
+      if (ch === '"' && next === '"') { cell += '"'; i++; }
+      else if (ch === '"') quoted = false;
+      else cell += ch;
+    } else if (ch === '"') quoted = true;
+    else if (ch === ',') { row.push(cell); cell = ''; }
+    else if (ch === '\n') { row.push(cell); rows.push(row); row = []; cell = ''; }
+    else if (ch !== '\r') cell += ch;
+  }
+  if (cell || row.length) { row.push(cell); rows.push(row); }
+  return rows.filter(r => r.some(v => String(v).trim()));
+}
+
+function normalizeInventoryImportRow(raw) {
+  const pick = (...keys) => {
+    for (const key of keys) {
+      const val = raw[key.toLowerCase()];
+      if (val != null && String(val).trim() !== '') return String(val).trim();
+    }
+    return '';
+  };
+  const name = pick('item name', 'name', 'item');
+  if (!name) return null;
+  const category = pick('category') || 'Other';
+  const matchedCategory = INV_CATEGORIES.find(c => c.toLowerCase() === category.toLowerCase());
+  return {
+    name,
+    sku: pick('sku', 'code', 'sku / code'),
+    category: matchedCategory || 'Other',
+    quantity: Math.max(0, parseInt(pick('quantity', 'qty'), 10) || 0),
+    unitPrice: Math.max(0, parseFloat(pick('unit price', 'unit price (tzs)', 'price')) || 0),
+    reorderLevel: Math.max(0, parseInt(pick('reorder level', 'reorder', 'minimum stock'), 10) || 0),
+    supplier: pick('supplier', 'vendor'),
+    updatedAt: new Date().toISOString()
+  };
+}
+
 function renderInventory(filterQuery) {
   const tbody = document.getElementById('inventoryTableBody');
   if (!tbody) return;
@@ -1087,10 +1153,117 @@ function renderInventory(filterQuery) {
       <td>${esc(it.supplier || '—')}</td>
       <td>
         <button class="btn-sm-dismiss" onclick="openInventoryModal('${esc(it.id)}')">✏️ Edit</button>
+        <button class="btn-sm-dismiss" onclick="openInventoryQrModal('${esc(it.id)}')">QR</button>
         <button class="btn-sm-dismiss" onclick="deleteInventoryItem('${esc(it.id)}')">🗑</button>
       </td>`;
     tbody.appendChild(tr);
   });
+}
+
+function downloadInventoryCSV() {
+  const headers = ['Item Name', 'SKU', 'Category', 'Quantity', 'Unit Price', 'Reorder Level', 'Supplier'];
+  const lines = [headers.map(csvCell).join(',')];
+  inventory
+    .slice()
+    .sort((a, b) => String(a.name || '').localeCompare(String(b.name || '')))
+    .forEach(it => lines.push([
+      it.name, it.sku, it.category, Number(it.quantity) || 0, Number(it.unitPrice) || 0,
+      Number(it.reorderLevel) || 0, it.supplier
+    ].map(csvCell).join(',')));
+  const blob = new Blob([lines.join('\n')], { type: 'text/csv;charset=utf-8' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `mjsd-inventory-${ymdLocal(new Date())}.csv`;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  URL.revokeObjectURL(url);
+}
+
+async function uploadInventoryCSV(event) {
+  const input = event.target;
+  const file = input.files && input.files[0];
+  if (!file) return;
+  try {
+    const rows = parseCSV(await file.text());
+    if (rows.length < 2) return alert('CSV must include a header row and at least one inventory item.');
+    const headers = rows[0].map(h => String(h).trim().toLowerCase());
+    let added = 0, updated = 0, skipped = 0;
+    rows.slice(1).forEach(row => {
+      const raw = {};
+      headers.forEach((h, i) => raw[h] = row[i] || '');
+      const item = normalizeInventoryImportRow(raw);
+      if (!item) { skipped++; return; }
+      const idx = item.sku
+        ? inventory.findIndex(x => String(x.sku || '').toLowerCase() === item.sku.toLowerCase())
+        : -1;
+      if (idx >= 0) {
+        inventory[idx] = { ...inventory[idx], ...item };
+        updated++;
+      } else {
+        inventory.unshift({ id: uid('INV'), ...item });
+        added++;
+      }
+    });
+    saveInventory();
+    renderInventory();
+    alert(`Inventory upload complete.\nAdded: ${added}\nUpdated: ${updated}\nSkipped: ${skipped}`);
+  } catch (err) {
+    alert('Could not read that CSV. Please check the file format and try again.');
+  } finally {
+    input.value = '';
+  }
+}
+
+function openInventoryQrModal(id) {
+  const it = inventory.find(x => x.id === id);
+  if (!it) return;
+  const qr = inventoryQrUrl(it, 320);
+  openAdminModal(`QR — ${it.name}`, `
+    <div class="inventory-qr-modal">
+      <div class="inventory-qr-card">
+        <img src="${qr}" alt="QR code for ${esc(it.name)}">
+        <div>
+          <strong>${esc(it.name)}</strong>
+          <span>${esc(it.sku || it.id)}</span>
+        </div>
+      </div>
+      <div class="inventory-qr-meta">
+        <div><span>Category</span><strong>${esc(it.category || 'Other')}</strong></div>
+        <div><span>Quantity</span><strong>${esc(it.quantity)}</strong></div>
+        <div><span>Reorder</span><strong>${esc(it.reorderLevel)}</strong></div>
+        <div><span>Supplier</span><strong>${esc(it.supplier || '—')}</strong></div>
+      </div>
+      <textarea readonly>${esc(inventoryQrPayload(it))}</textarea>
+      <div class="admin-modal-actions">
+        <a class="btn-ghost inventory-qr-download" href="${qr}" download="mjsd-${esc(it.sku || it.id)}-qr.png" target="_blank" rel="noopener">Download QR</a>
+        <button type="button" class="btn-primary" onclick="printInventoryQr('${esc(it.id)}')">Print Label</button>
+      </div>
+    </div>
+  `);
+}
+
+function printInventoryQr(id) {
+  const it = inventory.find(x => x.id === id);
+  if (!it) return;
+  const qr = inventoryQrUrl(it, 260);
+  const html = `<!doctype html><html><head><meta charset="utf-8"><title>Inventory QR ${esc(it.sku || it.id)}</title>
+    <style>
+      *{box-sizing:border-box}body{font-family:Arial,sans-serif;margin:0;padding:24px;color:#111;background:#fff}
+      .label{width:320px;border:2px solid #111;border-radius:12px;padding:16px;text-align:center}
+      img{width:220px;height:220px}.name{font-size:18px;font-weight:800;margin-top:10px}.sku{font-size:13px;color:#555;margin-top:4px}
+      .meta{font-size:12px;margin-top:10px;display:grid;grid-template-columns:1fr 1fr;gap:4px}
+      @media print{body{padding:0}.label{border-color:#111;break-inside:avoid}}
+    </style></head><body>
+    <div class="label">
+      <img src="${qr}" alt="QR">
+      <div class="name">${esc(it.name)}</div>
+      <div class="sku">${esc(it.sku || it.id)}</div>
+      <div class="meta"><div>Qty: ${esc(it.quantity)}</div><div>Reorder: ${esc(it.reorderLevel)}</div><div>${esc(it.category || 'Other')}</div><div>${esc(it.supplier || '—')}</div></div>
+    </div>
+    <script>window.addEventListener('load',()=>setTimeout(()=>print(),300));</script></body></html>`;
+  printInvoiceInFrame(html);
 }
 
 function openInventoryModal(id) {
@@ -1164,6 +1337,7 @@ const EXPENSE_CATS = [
 ];
 const PAYMENT_METHODS = ['Cash', 'Mobile Money', 'Bank Transfer', 'Card', 'Cheque'];
 let transactions = [];
+let invoices = [];
 
 function loadTransactions() {
   // Starts empty; staff record real income & expenses.
@@ -1549,3 +1723,579 @@ function deleteStaff(id) {
 
 // Small DOM text helper used by the new modules.
 function setText(id, value) { const el = document.getElementById(id); if (el) el.textContent = value; }
+
+/* ==========================================================================
+   INVOICING — create, print & track customer invoices. Stored in mjsd_invoices.
+   ========================================================================== */
+const INVOICES_KEY = 'mjsd_invoices';
+
+function loadInvoices() {
+  invoices = JSON.parse(localStorage.getItem(INVOICES_KEY)) || [];
+}
+function saveInvoices() { localStorage.setItem(INVOICES_KEY, JSON.stringify(invoices)); }
+
+function nextInvoiceNo() {
+  const year = new Date().getFullYear();
+  const max = invoices.reduce((m, inv) => {
+    const p = (inv.invoiceNo || '').split('-');
+    if (p.length === 3 && p[0] === 'INV' && p[1] === String(year)) return Math.max(m, parseInt(p[2], 10) || 0);
+    return m;
+  }, 0);
+  return `INV-${year}-${String(max + 1).padStart(4, '0')}`;
+}
+
+function invoiceDaysUntilDue(inv) {
+  if (!inv || !inv.dueDate || inv.status === 'Paid') return null;
+  const today = new Date(ymdLocal(new Date()) + 'T00:00:00');
+  const due = new Date(inv.dueDate + 'T00:00:00');
+  return Math.round((due - today) / 86400000);
+}
+
+function invoiceDueLabel(inv) {
+  const days = invoiceDaysUntilDue(inv);
+  if (days == null) return inv.status === 'Paid' ? 'Paid' : 'No due date';
+  if (days < 0) return `${Math.abs(days)} day${Math.abs(days) === 1 ? '' : 's'} overdue`;
+  if (days === 0) return 'Due today';
+  if (days === 1) return 'Due tomorrow';
+  return `Due in ${days} days`;
+}
+
+function renderInvoiceInsights() {
+  const wrap = document.getElementById('invoiceInsights');
+  if (!wrap) return;
+  const open = invoices.filter(i => ['Issued', 'Overdue'].includes(i.status));
+  const overdue = open.filter(i => invoiceDaysUntilDue(i) < 0);
+  const dueSoon = open.filter(i => {
+    const d = invoiceDaysUntilDue(i);
+    return d != null && d >= 0 && d <= 7;
+  });
+  const average = invoices.length ? invoices.reduce((s, i) => s + (Number(i.total) || 0), 0) / invoices.length : 0;
+  const latestPaid = invoices
+    .filter(i => i.status === 'Paid')
+    .slice()
+    .sort((a, b) => String(b.paidAt || b.date || '').localeCompare(String(a.paidAt || a.date || '')))[0];
+
+  wrap.innerHTML = `
+    <div class="invoice-insight-card danger">
+      <span class="insight-label">Overdue</span>
+      <strong>${overdue.length}</strong>
+      <span>${fmtTZS(overdue.reduce((s, i) => s + (Number(i.total) || 0), 0))}</span>
+    </div>
+    <div class="invoice-insight-card warn">
+      <span class="insight-label">Due This Week</span>
+      <strong>${dueSoon.length}</strong>
+      <span>${fmtTZS(dueSoon.reduce((s, i) => s + (Number(i.total) || 0), 0))}</span>
+    </div>
+    <div class="invoice-insight-card">
+      <span class="insight-label">Average Invoice</span>
+      <strong>${fmtTZS(average)}</strong>
+      <span>${open.length} open invoice${open.length === 1 ? '' : 's'}</span>
+    </div>
+    <div class="invoice-insight-card good">
+      <span class="insight-label">Last Paid</span>
+      <strong>${latestPaid ? esc(latestPaid.invoiceNo) : '—'}</strong>
+      <span>${latestPaid ? fmtTZS(latestPaid.total) : 'No paid invoices yet'}</span>
+    </div>`;
+}
+
+function renderInvoices() {
+  const tbody = document.getElementById('invTableBody');
+  if (!tbody) return;
+
+  // Auto-mark overdue: Issued invoices past due date
+  const today = ymdLocal(new Date());
+  let statusChanged = false;
+  invoices = invoices.map(inv =>
+    (inv.status === 'Issued' && inv.dueDate && inv.dueDate < today) ? (statusChanged = true, { ...inv, status: 'Overdue' }) : inv
+  );
+  if (statusChanged) saveInvoices();
+
+  // Stat widgets
+  const drafts = invoices.filter(i => i.status === 'Draft').length;
+  const paid   = invoices.filter(i => i.status === 'Paid').length;
+  const outstanding = invoices.filter(i => ['Issued', 'Overdue'].includes(i.status))
+    .reduce((s, i) => s + (Number(i.total) || 0), 0);
+  setText('invInvoicesTotal', invoices.length);
+  setText('invDraftCount', drafts);
+  setText('invPaidCount', paid);
+  setText('invOutstandingAmt', fmtTZS(outstanding));
+  renderInvoiceInsights();
+
+  const badge = document.getElementById('invoicesDraftBadge');
+  if (badge) { badge.textContent = drafts; badge.style.display = drafts > 0 ? 'inline-block' : 'none'; }
+
+  // Filter + search
+  const q  = ((document.getElementById('invoiceSearch') || {}).value || '').toLowerCase();
+  const sf = (document.getElementById('invoiceStatusFilter') || {}).value || 'all';
+  const rows = invoices
+    .filter(inv => sf === 'all' || inv.status === sf)
+    .filter(inv => !q ||
+      (inv.invoiceNo || '').toLowerCase().includes(q) ||
+      (inv.customerName || '').toLowerCase().includes(q) ||
+      (inv.customerPhone || '').toLowerCase().includes(q) ||
+      (inv.vehicle || '').toLowerCase().includes(q))
+    .slice().sort((a, b) => (b.date || '').localeCompare(a.date || ''));
+
+  tbody.innerHTML = '';
+  if (!rows.length) {
+    tbody.innerHTML = `<tr><td colspan="8" style="text-align:center;color:var(--gray)">No invoices found. Click "+ New Invoice" to create one.</td></tr>`;
+    return;
+  }
+  const sc = { Draft: 'pending', Issued: 'confirmed', Paid: 'completed', Overdue: 'cancelled' };
+  rows.forEach(inv => {
+    const tr = document.createElement('tr');
+    const days = invoiceDaysUntilDue(inv);
+    const dueClass = days == null || inv.status === 'Paid' ? '' : days < 0 ? ' overdue' : days <= 7 ? ' soon' : '';
+    tr.innerHTML = `
+      <td><code style="color:var(--red-light);font-weight:600">${esc(inv.invoiceNo)}</code></td>
+      <td style="white-space:nowrap">${esc(inv.date || '—')}</td>
+      <td style="white-space:nowrap"><span class="invoice-due${dueClass}">${esc(invoiceDueLabel(inv))}</span>${inv.dueDate ? `<br><span style="color:var(--gray);font-size:.72rem">${esc(inv.dueDate)}</span>` : ''}</td>
+      <td><strong>${esc(inv.customerName)}</strong>${inv.customerPhone ? `<br><span style="color:var(--gray);font-size:.78rem">${esc(inv.customerPhone)}</span>` : ''}</td>
+      <td>${esc(inv.vehicle || '—')}</td>
+      <td style="font-weight:700;white-space:nowrap">${fmtTZS(inv.total)}</td>
+      <td><span class="status-badge ${sc[inv.status] || 'pending'}">${esc(inv.status)}</span></td>
+      <td style="white-space:nowrap">
+        <button class="btn-sm-dismiss" onclick="printInvoice('${esc(inv.id)}')">🖨 Print</button>
+        ${inv.status !== 'Paid' && inv.customerPhone ? `<button class="btn-sm-dismiss" onclick="sendInvoiceReminder('${esc(inv.id)}')">Remind</button>` : ''}
+        <button class="btn-sm-dismiss" onclick="duplicateInvoice('${esc(inv.id)}')">Copy</button>
+        <button class="btn-sm-dismiss" onclick="openInvoiceModal('${esc(inv.id)}')">✏️</button>
+        ${inv.status !== 'Paid' ? `<button class="btn-sm-dismiss" style="color:var(--c-green);border-color:rgba(52,211,153,0.3)" onclick="markInvoicePaid('${esc(inv.id)}')">✓ Paid</button>` : ''}
+        <button class="btn-sm-dismiss" onclick="deleteInvoice('${esc(inv.id)}')">🗑</button>
+      </td>`;
+    tbody.appendChild(tr);
+  });
+}
+
+// ---- Create / Edit modal ----
+function openInvoiceModal(id) {
+  const inv = id ? invoices.find(x => x.id === id) : null;
+  const items = (inv && inv.items && inv.items.length) ? inv.items : [{ description: '', qty: 1, unitPrice: 0 }];
+  const today = ymdLocal(new Date());
+  const defaultDue = ymdLocal(new Date(Date.now() + 14 * 86400000));
+
+  const statusOpts = ['Draft', 'Issued', 'Paid', 'Overdue']
+    .map(s => `<option ${(inv ? inv.status : 'Draft') === s ? 'selected' : ''}>${s}</option>`).join('');
+  const methodOpts = PAYMENT_METHODS
+    .map(m => `<option ${inv && inv.paymentMethod === m ? 'selected' : ''}>${m}</option>`).join('');
+  const itemsHTML = items.map(it => `
+    <div class="inv-item-row">
+      <input type="text" class="if-desc" value="${esc(it.description)}" placeholder="e.g. Brake pad replacement" />
+      <input type="number" class="if-qty" value="${Number(it.qty) || 1}" min="0.01" step="any" />
+      <input type="number" class="if-up" value="${Number(it.unitPrice) || 0}" min="0" step="any" />
+      <span class="if-row-total">${fmtTZS((Number(it.qty) || 0) * (Number(it.unitPrice) || 0))}</span>
+      <button type="button" class="btn-remove-item" onclick="removeInvItemRow(this)" title="Remove row">×</button>
+    </div>`).join('');
+
+  openAdminModal(inv ? `Edit — ${inv.invoiceNo}` : 'New Invoice', `
+    <form id="invoiceForm" class="admin-modal-form">
+      <div class="modal-grid-2">
+        <div><label>Customer Name *</label><input id="ifCustName" required value="${inv ? esc(inv.customerName) : ''}" placeholder="Full name" /></div>
+        <div><label>Phone</label><input id="ifCustPhone" value="${inv ? esc(inv.customerPhone || '') : ''}" placeholder="+255 xxx xxx xxx" /></div>
+      </div>
+      <div class="modal-grid-2">
+        <div><label>Vehicle (Make / Model / Plate)</label><input id="ifVehicle" value="${inv ? esc(inv.vehicle || '') : ''}" placeholder="e.g. Toyota Hilux – T 482 BCA" /></div>
+        <div><label>Email</label><input type="email" id="ifCustEmail" value="${inv ? esc(inv.customerEmail || '') : ''}" placeholder="Optional" /></div>
+      </div>
+      <div class="modal-grid-3">
+        <div><label>Invoice No.</label><input id="ifNo" readonly value="${inv ? esc(inv.invoiceNo) : 'Auto-generated'}" style="opacity:.55;cursor:default" /></div>
+        <div><label>Date *</label><input type="date" id="ifDate" required value="${inv ? esc(inv.date) : today}" /></div>
+        <div><label>Due Date</label><input type="date" id="ifDue" value="${inv ? esc(inv.dueDate || '') : defaultDue}" /></div>
+      </div>
+
+      <div class="inv-section-label">Line Items</div>
+      <div class="inv-items-header">
+        <span>Description</span><span style="text-align:center">Qty</span><span style="text-align:right">Unit Price</span><span style="text-align:right">Total</span><span></span>
+      </div>
+      <div id="ifItemsContainer">${itemsHTML}</div>
+      <button type="button" class="btn-add-item" id="btnAddInvItem">+ Add Line</button>
+
+      <div class="inv-totals">
+        <div class="inv-total-row"><span>Subtotal</span><span id="ifSubtotal">TZS 0</span></div>
+        <div class="inv-total-row">
+          <span>VAT&nbsp;<input type="number" id="ifVatRate" value="${inv ? (inv.vatRate || 0) : 18}" min="0" max="100" step="any" style="width:3.6rem;display:inline-block;padding:.2rem .4rem;background:rgba(0,0,0,.35);border:1px solid rgba(255,255,255,.1);border-radius:6px;color:#fff;text-align:center;font-size:.85rem" />&nbsp;%</span>
+          <span id="ifVatAmt">TZS 0</span>
+        </div>
+        <div class="inv-total-row inv-grand-total"><span>Grand Total</span><span id="ifGrandTotal">TZS 0</span></div>
+      </div>
+
+      <div class="modal-grid-2">
+        <div><label>Status</label><select id="ifStatus">${statusOpts}</select></div>
+        <div><label>Payment Method</label><select id="ifPayMethod">${methodOpts}</select></div>
+      </div>
+      <label>Notes / Terms</label>
+      <textarea id="ifNotes" rows="2" placeholder="e.g. 3-month warranty on parts. Payment due within 14 days.">${inv ? esc(inv.notes || '') : ''}</textarea>
+
+      <p class="modal-err" id="ifErr" style="display:none"></p>
+      <div class="admin-modal-actions">
+        <button type="button" class="btn-ghost" onclick="closeAdminModal()">Cancel</button>
+        <button type="submit" class="btn-primary">${inv ? 'Save Changes' : 'Create Invoice'}</button>
+      </div>
+    </form>`, true);
+
+  // Wire up events after modal is rendered
+  calcInvTotals();
+  document.querySelectorAll('#ifItemsContainer .if-qty, #ifItemsContainer .if-up')
+    .forEach(inp => inp.addEventListener('input', calcInvTotals));
+  document.getElementById('ifVatRate').addEventListener('input', calcInvTotals);
+  document.getElementById('btnAddInvItem').addEventListener('click', addInvItemRow);
+  document.getElementById('invoiceForm').addEventListener('submit', (e) => {
+    e.preventDefault();
+    saveInvoiceFromForm(inv ? inv.id : null);
+  });
+}
+
+function addInvItemRow() {
+  const container = document.getElementById('ifItemsContainer');
+  if (!container) return;
+  const div = document.createElement('div');
+  div.className = 'inv-item-row';
+  div.innerHTML = `
+    <input type="text" class="if-desc" placeholder="e.g. Labour — engine service" />
+    <input type="number" class="if-qty" value="1" min="0.01" step="any" />
+    <input type="number" class="if-up" value="0" min="0" step="any" />
+    <span class="if-row-total">${fmtTZS(0)}</span>
+    <button type="button" class="btn-remove-item" onclick="removeInvItemRow(this)" title="Remove">×</button>`;
+  container.appendChild(div);
+  div.querySelectorAll('.if-qty, .if-up').forEach(inp => inp.addEventListener('input', calcInvTotals));
+  div.querySelector('.if-desc').focus();
+}
+
+function removeInvItemRow(btn) {
+  const container = document.getElementById('ifItemsContainer');
+  if (!container || container.children.length <= 1) return;
+  btn.closest('.inv-item-row').remove();
+  calcInvTotals();
+}
+
+function calcInvTotals() {
+  let subtotal = 0;
+  document.querySelectorAll('#ifItemsContainer .inv-item-row').forEach(row => {
+    const qty = parseFloat(row.querySelector('.if-qty').value) || 0;
+    const up  = parseFloat(row.querySelector('.if-up').value) || 0;
+    const rt  = qty * up;
+    subtotal += rt;
+    row.querySelector('.if-row-total').textContent = fmtTZS(rt);
+  });
+  const vatRate = parseFloat((document.getElementById('ifVatRate') || {}).value) || 0;
+  const vatAmt  = subtotal * vatRate / 100;
+  setText('ifSubtotal',   fmtTZS(subtotal));
+  setText('ifVatAmt',     fmtTZS(vatAmt));
+  setText('ifGrandTotal', fmtTZS(subtotal + vatAmt));
+}
+
+function saveInvoiceFromForm(editId) {
+  const err = document.getElementById('ifErr');
+  const custName = document.getElementById('ifCustName').value.trim();
+  if (!custName) return showInlineError(err, 'Customer name is required.');
+  const date = document.getElementById('ifDate').value;
+  if (!date) return showInlineError(err, 'Invoice date is required.');
+
+  const items = [];
+  let subtotal = 0;
+  document.querySelectorAll('#ifItemsContainer .inv-item-row').forEach(row => {
+    const desc = row.querySelector('.if-desc').value.trim();
+    const qty  = Math.max(0, parseFloat(row.querySelector('.if-qty').value) || 0);
+    const up   = Math.max(0, parseFloat(row.querySelector('.if-up').value) || 0);
+    if (desc || qty > 0 || up > 0) {
+      items.push({ description: desc || '—', qty, unitPrice: up });
+      subtotal += qty * up;
+    }
+  });
+  if (!items.length) return showInlineError(err, 'Add at least one line item.');
+
+  const vatRate  = Math.max(0, parseFloat(document.getElementById('ifVatRate').value) || 0);
+  const vatAmount = subtotal * vatRate / 100;
+  const data = {
+    customerName:  custName,
+    customerPhone: document.getElementById('ifCustPhone').value.trim(),
+    customerEmail: document.getElementById('ifCustEmail').value.trim(),
+    vehicle:       document.getElementById('ifVehicle').value.trim(),
+    date,
+    dueDate:       document.getElementById('ifDue').value,
+    items,
+    subtotal,
+    vatRate,
+    vatAmount,
+    total:         subtotal + vatAmount,
+    status:        document.getElementById('ifStatus').value,
+    paymentMethod: document.getElementById('ifPayMethod').value,
+    notes:         document.getElementById('ifNotes').value.trim()
+  };
+
+  if (editId) {
+    invoices = invoices.map(i => i.id === editId ? { ...i, ...data } : i);
+  } else {
+    invoices.unshift({ id: uid('INVR'), invoiceNo: nextInvoiceNo(), ...data, createdAt: new Date().toISOString() });
+  }
+  saveInvoices();
+  closeAdminModal();
+  renderInvoices();
+}
+
+function duplicateInvoice(id) {
+  const inv = invoices.find(i => i.id === id);
+  if (!inv) return;
+  const today = ymdLocal(new Date());
+  const due = ymdLocal(new Date(Date.now() + 14 * 86400000));
+  invoices.unshift({
+    ...inv,
+    id: uid('INVR'),
+    invoiceNo: nextInvoiceNo(),
+    date: today,
+    dueDate: due,
+    status: 'Draft',
+    paidAt: '',
+    createdAt: new Date().toISOString()
+  });
+  saveInvoices();
+  renderInvoices();
+}
+
+function sendInvoiceReminder(id) {
+  const inv = invoices.find(i => i.id === id);
+  if (!inv || !inv.customerPhone) return;
+  const phone = inv.customerPhone.replace(/[^\d+]/g, '');
+  const text = `Hello ${inv.customerName || 'there'}, this is MJSD Mechanics. Invoice ${inv.invoiceNo} for ${fmtTZS(inv.total)} is ${invoiceDueLabel(inv).toLowerCase()}. Thank you.`;
+  window.open(`https://wa.me/${encodeURIComponent(phone.replace(/^\+/, ''))}?text=${encodeURIComponent(text)}`, '_blank', 'noopener');
+}
+
+function exportInvoicesCSV() {
+  const cell = v => `"${String(v == null ? '' : v).replace(/"/g, '""')}"`;
+  const lines = [['Invoice No', 'Date', 'Due Date', 'Customer', 'Phone', 'Vehicle', 'Subtotal', 'VAT Rate', 'VAT Amount', 'Total', 'Status', 'Payment Method', 'Notes'].map(cell).join(',')];
+  invoices.forEach(inv => {
+    lines.push([
+      inv.invoiceNo, inv.date, inv.dueDate, inv.customerName, inv.customerPhone, inv.vehicle,
+      Number(inv.subtotal) || 0, Number(inv.vatRate) || 0, Number(inv.vatAmount) || 0, Number(inv.total) || 0,
+      inv.status, inv.paymentMethod, inv.notes
+    ].map(cell).join(','));
+  });
+  const blob = new Blob([lines.join('\n')], { type: 'text/csv;charset=utf-8' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `mjsd-invoices-${ymdLocal(new Date())}.csv`;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  URL.revokeObjectURL(url);
+}
+
+function printInvoiceInFrame(html) {
+  const frame = document.createElement('iframe');
+  frame.style.position = 'fixed';
+  frame.style.right = '0';
+  frame.style.bottom = '0';
+  frame.style.width = '0';
+  frame.style.height = '0';
+  frame.style.border = '0';
+  frame.setAttribute('aria-hidden', 'true');
+  document.body.appendChild(frame);
+  const doc = frame.contentWindow && frame.contentWindow.document;
+  if (!doc) {
+    frame.remove();
+    alert('Print preview could not be prepared. Please try again.');
+    return;
+  }
+  doc.open();
+  doc.write(html);
+  doc.close();
+  setTimeout(() => {
+    frame.contentWindow.focus();
+    frame.contentWindow.print();
+    setTimeout(() => frame.remove(), 1200);
+  }, 500);
+}
+
+function openInvoicePrintPreview(html, invoiceNo) {
+  openAdminModal(`Print — ${invoiceNo}`, `
+    <div class="invoice-print-actions">
+      <button type="button" class="btn-primary" onclick="printInvoicePreview()">Print Invoice</button>
+      <button type="button" class="btn-ghost" onclick="closeAdminModal()">Close</button>
+    </div>
+    <iframe id="invoicePrintPreview" class="invoice-print-preview" title="Invoice print preview"></iframe>
+  `, true);
+  const card = document.querySelector('.admin-modal-card.wide');
+  if (card) card.classList.add('print-preview');
+  const frame = document.getElementById('invoicePrintPreview');
+  if (frame) frame.srcdoc = html;
+}
+
+function printInvoicePreview() {
+  const frame = document.getElementById('invoicePrintPreview');
+  if (!frame || !frame.contentWindow) {
+    alert('Print preview is not ready yet. Please try again.');
+    return;
+  }
+  frame.contentWindow.focus();
+  frame.contentWindow.print();
+}
+
+// ---- Mark invoice paid + optional accounting post ----
+function markInvoicePaid(id) {
+  const inv = invoices.find(i => i.id === id);
+  if (!inv) return;
+  if (!confirm(`Mark ${inv.invoiceNo} as Paid?`)) return;
+
+  invoices = invoices.map(i => i.id === id ? { ...i, status: 'Paid', paidAt: new Date().toISOString() } : i);
+  saveInvoices();
+
+  if (confirm(`Post TZS ${Number(inv.total || 0).toLocaleString()} to Accounting as income?`)) {
+    transactions.unshift({
+      id: uid('TX'),
+      type: 'income',
+      date: ymdLocal(new Date()),
+      category: 'Service / Labour Revenue',
+      payee: inv.customerName,
+      description: `Invoice ${inv.invoiceNo}${inv.vehicle ? ' — ' + inv.vehicle : ''}`,
+      amount: inv.total,
+      vatRate: inv.vatRate || 0,
+      status: 'Paid',
+      paymentMethod: inv.paymentMethod || 'Cash',
+      reference: inv.invoiceNo,
+      createdAt: new Date().toISOString()
+    });
+    saveTransactions();
+    renderAccounting();
+  }
+  renderInvoices();
+}
+
+function deleteInvoice(id) {
+  const inv = invoices.find(i => i.id === id);
+  if (!inv) return;
+  if (confirm(`Delete invoice ${inv.invoiceNo}? This cannot be undone.`)) {
+    invoices = invoices.filter(i => i.id !== id);
+    saveInvoices();
+    renderInvoices();
+  }
+}
+
+// ---- Print invoice in a new popup window ----
+function printInvoice(id) {
+  const inv = invoices.find(i => i.id === id);
+  if (!inv) return;
+
+  const sc = { Draft: '#f59e0b', Issued: '#3b82f6', Paid: '#10b981', Overdue: '#ef4444' };
+  const color = sc[inv.status] || '#6b7280';
+  const fmt = n => (Number(n) || 0).toLocaleString('en-US', { maximumFractionDigits: 0 });
+
+  const itemRows = (inv.items || []).map((it, i) => `
+    <tr>
+      <td style="text-align:center;color:#6b7280">${i + 1}</td>
+      <td>${esc(it.description || '—')}</td>
+      <td style="text-align:center">${esc(it.qty)}</td>
+      <td style="text-align:right">TZS ${fmt(it.unitPrice)}</td>
+      <td style="text-align:right;font-weight:600">TZS ${fmt((Number(it.qty) || 0) * (Number(it.unitPrice) || 0))}</td>
+    </tr>`).join('');
+
+  const html = `<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Invoice ${esc(inv.invoiceNo)} — MJSD Mechanics</title>
+  <style>
+    *{box-sizing:border-box;margin:0;padding:0}
+    body{font-family:'Segoe UI',Arial,sans-serif;color:#1a1a2e;background:#f3f4f6;font-size:14px;line-height:1.5}
+    .print-toolbar{position:sticky;top:0;z-index:5;display:flex;justify-content:center;gap:10px;padding:12px;background:#111827;box-shadow:0 8px 24px rgba(0,0,0,.18)}
+    .print-toolbar button{border:0;border-radius:8px;padding:10px 16px;font-weight:700;cursor:pointer}
+    .print-toolbar .primary{background:#f97316;color:#fff}
+    .print-toolbar .secondary{background:#374151;color:#fff}
+    .page{max-width:760px;margin:24px auto;padding:40px;background:#fff;box-shadow:0 20px 60px rgba(15,23,42,.14)}
+    .inv-header{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:32px;padding-bottom:20px;border-bottom:3px solid #f97316}
+    .co-name{font-size:22px;font-weight:800;color:#f97316;letter-spacing:-0.5px}
+    .co-sub{font-size:11px;color:#6b7280;margin-top:2px}
+    .co-contact{font-size:12px;color:#4b5563;margin-top:8px;line-height:1.8}
+    .inv-title-block{text-align:right}
+    .inv-title{font-size:34px;font-weight:900;color:#1a1a2e;letter-spacing:-1px}
+    .inv-no{font-size:14px;color:#f97316;font-weight:700;margin-top:4px}
+    .inv-badge{display:inline-block;background:${color}20;color:${color};border:1.5px solid ${color};border-radius:20px;padding:3px 14px;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;margin-top:8px}
+    .inv-meta{display:flex;gap:36px;margin-bottom:28px;flex-wrap:wrap}
+    .meta-label{font-size:10px;text-transform:uppercase;letter-spacing:.5px;color:#9ca3af;font-weight:600}
+    .meta-value{font-size:14px;font-weight:600;color:#1a1a2e;margin-top:2px}
+    .bill-to{background:#f9fafb;border-radius:10px;padding:16px 20px;display:inline-block;min-width:260px;margin-bottom:28px}
+    .bill-label{font-size:10px;text-transform:uppercase;letter-spacing:.5px;color:#9ca3af;font-weight:700;margin-bottom:8px}
+    .bill-name{font-size:16px;font-weight:700;color:#1a1a2e}
+    .bill-detail{font-size:13px;color:#4b5563;margin-top:3px}
+    table.items{width:100%;border-collapse:collapse;margin-bottom:20px}
+    table.items th{background:#1a1a2e;color:#fff;padding:10px 14px;font-size:11px;text-transform:uppercase;letter-spacing:.5px}
+    table.items th:first-child{border-radius:8px 0 0 8px}
+    table.items th:last-child{border-radius:0 8px 8px 0}
+    table.items td{padding:11px 14px;border-bottom:1px solid #e5e7eb;font-size:13px;vertical-align:middle}
+    table.items tr:last-child td{border-bottom:2px solid #e5e7eb}
+    table.items tr:nth-child(even) td{background:#f9fafb}
+    .totals-wrap{display:flex;justify-content:flex-end;margin-bottom:28px}
+    .totals-box{width:280px}
+    .t-row{display:flex;justify-content:space-between;padding:7px 0;font-size:13px;color:#4b5563;border-bottom:1px dashed #e5e7eb}
+    .t-row span:last-child{font-weight:600;color:#1a1a2e}
+    .t-grand{display:flex;justify-content:space-between;padding:12px 16px;background:#1a1a2e;border-radius:10px;margin-top:8px}
+    .t-grand span:first-child{color:#9ca3af;font-weight:600;font-size:14px}
+    .t-grand span:last-child{color:#f97316;font-weight:800;font-size:18px}
+    .notes{background:#f9fafb;border-left:4px solid #f97316;padding:12px 16px;border-radius:0 8px 8px 0;margin-bottom:28px;font-size:13px;color:#4b5563}
+    .notes strong{display:block;color:#1a1a2e;margin-bottom:4px}
+    .footer{text-align:center;padding-top:20px;border-top:1px solid #e5e7eb;color:#9ca3af;font-size:12px;line-height:1.8}
+    @media print{body{background:#fff;print-color-adjust:exact;-webkit-print-color-adjust:exact}.print-toolbar{display:none}.page{padding:20px;margin:0 auto;box-shadow:none}}
+  </style>
+</head>
+<body>
+<div class="page">
+  <div class="inv-header">
+    <div>
+      <div class="co-name">⚙ MJSD Mechanics</div>
+      <div class="co-sub">Professional Vehicle Diagnostics &amp; Repair</div>
+      <div class="co-contact">📍 Morogoro-Mkundi, Tanzania<br>📞 +255 694 666 888<br>✉ admin@mjsdmechanics.com</div>
+    </div>
+    <div class="inv-title-block">
+      <div class="inv-title">INVOICE</div>
+      <div class="inv-no">${esc(inv.invoiceNo)}</div>
+      <div><span class="inv-badge">${esc(inv.status)}</span></div>
+    </div>
+  </div>
+
+  <div class="inv-meta">
+    <div><div class="meta-label">Invoice Date</div><div class="meta-value">${esc(inv.date || '—')}</div></div>
+    ${inv.dueDate ? `<div><div class="meta-label">Due Date</div><div class="meta-value">${esc(inv.dueDate)}</div></div>` : ''}
+    ${inv.paymentMethod ? `<div><div class="meta-label">Payment</div><div class="meta-value">${esc(inv.paymentMethod)}</div></div>` : ''}
+  </div>
+
+  <div class="bill-to">
+    <div class="bill-label">Bill To</div>
+    <div class="bill-name">${esc(inv.customerName || '—')}</div>
+    ${inv.customerPhone ? `<div class="bill-detail">📞 ${esc(inv.customerPhone)}</div>` : ''}
+    ${inv.customerEmail ? `<div class="bill-detail">✉ ${esc(inv.customerEmail)}</div>` : ''}
+    ${inv.vehicle ? `<div class="bill-detail" style="margin-top:6px;font-weight:600;color:#1a1a2e">🚗 ${esc(inv.vehicle)}</div>` : ''}
+  </div>
+
+  <table class="items">
+    <thead>
+      <tr>
+        <th style="width:36px;text-align:center">#</th>
+        <th>Description</th>
+        <th style="width:56px;text-align:center">Qty</th>
+        <th style="width:120px;text-align:right">Unit Price</th>
+        <th style="width:120px;text-align:right">Total</th>
+      </tr>
+    </thead>
+    <tbody>${itemRows}</tbody>
+  </table>
+
+  <div class="totals-wrap">
+    <div class="totals-box">
+      <div class="t-row"><span>Subtotal</span><span>TZS ${fmt(inv.subtotal)}</span></div>
+      ${(inv.vatRate > 0) ? `<div class="t-row"><span>VAT (${inv.vatRate}%)</span><span>TZS ${fmt(inv.vatAmount)}</span></div>` : ''}
+      <div class="t-grand"><span>TOTAL DUE</span><span>TZS ${fmt(inv.total)}</span></div>
+    </div>
+  </div>
+
+  ${inv.notes ? `<div class="notes"><strong>Notes &amp; Terms</strong>${esc(inv.notes)}</div>` : ''}
+
+  <div class="footer">
+    <strong style="color:#1a1a2e;font-size:14px">Thank you for choosing MJSD Mechanics!</strong><br>
+    Accepted payments: Cash · Mobile Money (M-Pesa / Tigo Pesa) · Bank Transfer<br>
+    Generated ${new Date().toLocaleDateString('en-TZ', { dateStyle: 'long' })}
+  </div>
+</div>
+</body>
+</html>`;
+
+  openInvoicePrintPreview(html, inv.invoiceNo);
+}

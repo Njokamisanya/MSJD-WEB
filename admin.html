@@ -7,7 +7,7 @@
 
   <!-- ===== SECURITY HEADERS ===== -->
   <meta http-equiv="X-Frame-Options" content="DENY" />
-  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; img-src 'self' data: https://placehold.co https://images.unsplash.com; connect-src 'self'; frame-ancestors 'none';" />
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; img-src 'self' data: https://placehold.co https://images.unsplash.com https://api.qrserver.com; connect-src 'self'; frame-ancestors 'none';" />
   <meta name="referrer" content="strict-origin-when-cross-origin" />
   <meta http-equiv="X-Content-Type-Options" content="nosniff" />
   <meta name="robots" content="noindex, nofollow" />
@@ -121,6 +121,10 @@
       </a>
       <a href="#uploader" class="nav-item" data-tab="uploader">
         <span class="nav-icon">📸</span> Gallery Manager
+      </a>
+      <a href="#invoices" class="nav-item" data-tab="invoices">
+        <span class="nav-icon">🧾</span> Invoices
+        <span class="badge" id="invoicesDraftBadge" style="display:none">0</span>
       </a>
       <a href="#inventory" class="nav-item" data-tab="inventory">
         <span class="nav-icon">📦</span> Inventory
@@ -362,6 +366,58 @@
         </div>
       </section>
 
+      <!-- ==================== INVOICES TAB ==================== -->
+      <section class="admin-tab-content" id="tab-invoices">
+        <div class="stats-grid">
+          <div class="stat-widget">
+            <div class="widget-icon bg-blue">🧾</div>
+            <div class="widget-info"><span class="widget-label">Total Invoices</span><h3 id="invInvoicesTotal">0</h3></div>
+          </div>
+          <div class="stat-widget">
+            <div class="widget-icon bg-yellow">📝</div>
+            <div class="widget-info"><span class="widget-label">Draft</span><h3 id="invDraftCount">0</h3></div>
+          </div>
+          <div class="stat-widget">
+            <div class="widget-icon bg-green">✅</div>
+            <div class="widget-info"><span class="widget-label">Paid</span><h3 id="invPaidCount">0</h3></div>
+          </div>
+          <div class="stat-widget">
+            <div class="widget-icon bg-red">💸</div>
+            <div class="widget-info"><span class="widget-label">Outstanding</span><h3 id="invOutstandingAmt">TZS 0</h3></div>
+          </div>
+        </div>
+        <div class="filter-bar">
+          <div class="search-input-wrap">
+            <span class="search-icon">🔍</span>
+            <input type="text" id="invoiceSearch" placeholder="Search invoice no., customer or vehicle..." onkeyup="renderInvoices()">
+          </div>
+          <div class="filter-dropdowns">
+            <select id="invoiceStatusFilter" onchange="renderInvoices()">
+              <option value="all">All Statuses</option>
+              <option value="Draft">Draft</option>
+              <option value="Issued">Issued</option>
+              <option value="Paid">Paid</option>
+              <option value="Overdue">Overdue</option>
+            </select>
+          </div>
+          <button class="btn-ghost btn-inline" onclick="exportInvoicesCSV()">Export CSV</button>
+          <button class="btn-primary btn-inline" onclick="openInvoiceModal()">+ New Invoice</button>
+        </div>
+        <div class="invoice-insights" id="invoiceInsights"></div>
+        <div class="overview-card">
+          <div class="table-responsive">
+            <table class="admin-table full-table">
+              <thead>
+                <tr>
+                  <th>Invoice No.</th><th>Date</th><th>Due</th><th>Customer</th><th>Vehicle</th><th>Total</th><th>Status</th><th>Actions</th>
+                </tr>
+              </thead>
+              <tbody id="invTableBody"></tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
       <!-- ==================== INVENTORY TAB ==================== -->
       <section class="admin-tab-content" id="tab-inventory">
         <div class="stats-grid">
@@ -383,7 +439,12 @@
             <span class="search-icon">🔍</span>
             <input type="text" id="inventorySearch" placeholder="Search part, SKU, category or supplier..." onkeyup="renderInventory()">
           </div>
-          <button class="btn-primary btn-inline" onclick="openInventoryModal()">+ Add Item</button>
+          <div class="inventory-actions">
+            <button class="btn-ghost btn-inline" onclick="downloadInventoryCSV()">Download CSV</button>
+            <button class="btn-ghost btn-inline" onclick="document.getElementById('inventoryUploadInput').click()">Upload CSV</button>
+            <button class="btn-primary btn-inline" onclick="openInventoryModal()">+ Add Item</button>
+          </div>
+          <input type="file" id="inventoryUploadInput" accept=".csv,text/csv" style="display:none" onchange="uploadInventoryCSV(event)">
         </div>
         <div class="overview-card">
           <div class="table-responsive">
